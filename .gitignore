@@ -1,0 +1,4 @@
+/galdav
+*.db
+*.db-*
+config.yaml
