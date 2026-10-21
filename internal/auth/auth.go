@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -91,6 +92,19 @@ func (a *Authenticator) Verify(username, password string) (store.User, bool) {
 	}
 	return u, true
 }
+
+// NewCredentials derives both stored password forms for user: an argon2id
+// hash and the Digest HA1 for the configured realm.
+func (a *Authenticator) NewCredentials(user, password string) (hash, ha1 string, err error) {
+	hash, err = HashPassword(password)
+	return hash, HA1(user, a.Realm, password), err
+}
+
+var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)
+
+// ValidUsername reports whether name is acceptable for a new account. The
+// name appears in DAV URLs, so it is restricted to URL-safe characters.
+func ValidUsername(name string) bool { return usernameRE.MatchString(name) }
 
 type ctxKey struct{}
 

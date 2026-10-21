@@ -1,0 +1,74 @@
+{{define "content"}}
+<h1>Collections</h1>
+<section>
+  <h2>Connect your devices</h2>
+  <p>Use this server address in your calendar or contacts app, with your username <code>{{.User.Username}}</code>:</p>
+  <p><code>{{.DAVURL}}</code></p>
+</section>
+
+{{with .Data}}
+<section>
+  <h2>Calendars</h2>
+  {{if .Calendars}}
+  <table>
+    <tr><th>Name</th><th class="hide">URL name</th><th>Events</th><th></th></tr>
+    {{range .Calendars}}
+    <tr>
+      <td>{{if .Color}}<svg class="swatch" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="{{.Color}}"/></svg>{{end}}{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td>
+      <td class="hide"><code>{{.Slug}}</code></td>
+      <td>{{.Count}}</td>
+      <td><a href="/admin/collections/{{.ID}}">Edit</a></td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}<p class="muted">No calendars yet.</p>{{end}}
+</section>
+
+<section>
+  <h2>Address books</h2>
+  {{if .AddressBooks}}
+  <table>
+    <tr><th>Name</th><th class="hide">URL name</th><th>Contacts</th><th></th></tr>
+    {{range .AddressBooks}}
+    <tr>
+      <td>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td>
+      <td class="hide"><code>{{.Slug}}</code></td>
+      <td>{{.Count}}</td>
+      <td><a href="/admin/collections/{{.ID}}">Edit</a></td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}<p class="muted">No address books yet.</p>{{end}}
+</section>
+{{end}}
+
+<section>
+  <h2>New calendar</h2>
+  <form method="post" action="/admin/collections" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="kind" value="calendar">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Description <input type="text" name="description"></label>
+    <label>Colour <input type="text" name="color" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></label>
+    <div class="row">
+      <label class="inline"><input type="checkbox" name="comp_VEVENT" value="1" checked> Events</label>
+      <label class="inline"><input type="checkbox" name="comp_VTODO" value="1" checked> Tasks</label>
+      <label class="inline"><input type="checkbox" name="comp_VJOURNAL" value="1"> Journal</label>
+    </div>
+    <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
+    <div><button type="submit">Create calendar</button></div>
+  </form>
+</section>
+
+<section>
+  <h2>New address book</h2>
+  <form method="post" action="/admin/collections" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="kind" value="addressbook">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Description <input type="text" name="description"></label>
+    <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
+    <div><button type="submit">Create address book</button></div>
+  </form>
+</section>
+{{end}}

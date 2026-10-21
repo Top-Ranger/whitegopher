@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bitflipp/galdav/internal/admin"
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/config"
 	"github.com/bitflipp/galdav/internal/dav"
@@ -31,7 +32,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("galdav", flag.ContinueOnError)
 	cfgPath := fs.String("config", "config.yaml", "path to config file")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: galdav [-config file] <serve|useradd NAME|import-baikal [-dry-run] SQLITE_FILE>")
+		fmt.Fprintln(os.Stderr, "usage: galdav [-config file] <serve|useradd [-admin] NAME|import-baikal [-dry-run] SQLITE_FILE>")
 	}
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -56,30 +57,50 @@ func run(args []string) error {
 	case "import-baikal":
 		return importBaikal(st, fs.Args()[1:])
 	case "useradd":
-		if fs.NArg() != 2 {
-			return fmt.Errorf("usage: useradd NAME (password read from stdin)")
-		}
-		return useradd(cfg, st, fs.Arg(1))
+		return useradd(cfg, st, fs.Args()[1:])
 	}
 	return fmt.Errorf("unknown command %q", fs.Arg(0))
 }
 
 func serve(cfg config.Config, st *store.Store) error {
-	srv := &dav.Server{
-		Store:    st,
-		Auth:     &auth.Authenticator{Store: st, Realm: cfg.Realm},
-		BasePath: strings.TrimRight(cfg.BasePath, "/"),
+	basePath := strings.TrimRight(cfg.BasePath, "/")
+	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm}
+	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", davSrv.Handler())
+	if cfg.Admin.Enabled {
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath}).Handler()
+		if err != nil {
+			return err
+		}
+		mux.Handle("/admin/", ui)
+		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/admin/", http.StatusSeeOther)
+		})
 	}
 	hs := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           srv.Handler(),
+		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	slog.Info("listening", "addr", cfg.Listen)
+	slog.Info("listening", "addr", cfg.Listen, "admin", cfg.Admin.Enabled)
 	return hs.ListenAndServe()
 }
 
-func useradd(cfg config.Config, st *store.Store, name string) error {
+func useradd(cfg config.Config, st *store.Store, args []string) error {
+	fs := flag.NewFlagSet("useradd", flag.ContinueOnError)
+	admin := fs.Bool("admin", false, "make the user an administrator")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: useradd [-admin] NAME (password read from stdin)")
+	}
+	name := fs.Arg(0)
+	if !auth.ValidUsername(name) {
+		return fmt.Errorf("invalid username %q: use letters, digits and . _ @ - (max 64)", name)
+	}
 	fmt.Fprint(os.Stderr, "password: ")
 	pw, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil && pw == "" {
@@ -97,6 +118,7 @@ func useradd(cfg config.Config, st *store.Store, name string) error {
 		Username:     name,
 		PasswordHash: hash,
 		DigestHA1:    auth.HA1(name, cfg.Realm, pw),
+		IsAdmin:      *admin,
 	})
 	return err
 }

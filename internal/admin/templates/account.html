@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>Account</h1>
+<section>
+  <p>Signed in as <strong>{{.User.Username}}</strong>{{if .User.IsAdmin}} <span class="tag">administrator</span>{{end}}.</p>
+  <p>Server address for your devices: <code>{{.DAVURL}}</code></p>
+</section>
+<section>
+  <h2>Change password</h2>
+  <p class="muted">You will be signed out everywhere, and your devices need the new password.</p>
+  <form method="post" action="/admin/account/password" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
+    <label>New password <input type="password" name="password" autocomplete="new-password" required minlength="8"></label>
+    <label>Repeat new password <input type="password" name="password2" autocomplete="new-password" required minlength="8"></label>
+    <div><button type="submit">Change password</button></div>
+  </form>
+</section>
+{{end}}

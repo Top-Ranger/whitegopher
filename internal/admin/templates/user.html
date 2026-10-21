@@ -1,0 +1,33 @@
+{{define "content"}}
+{{with .Data}}
+<h1>User: {{.Username}}</h1>
+<section>
+  <h2>Profile</h2>
+  <form method="post" action="/admin/users/{{.ID}}" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Display name <input type="text" name="display_name" value="{{.DisplayName}}"></label>
+    <label>Email <input type="email" name="email" value="{{.Email}}"></label>
+    <label class="inline"><input type="checkbox" name="is_admin" value="1"{{if .IsAdmin}} checked{{end}}> Administrator</label>
+    <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/users">Back</a></div>
+  </form>
+</section>
+<section>
+  <h2>Reset password</h2>
+  <p class="muted">Ends all of this user's sessions.</p>
+  <form method="post" action="/admin/users/{{.ID}}/password" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>New password <input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    <div><button type="submit" class="secondary">Set password</button></div>
+  </form>
+</section>
+<section>
+  <h2>Delete user</h2>
+  <p>Deletes the account with all calendars and address books.</p>
+  <form method="post" action="/admin/users/{{.ID}}/delete" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Type <code>{{.Username}}</code> to confirm <input type="text" name="confirm" autocomplete="off"></label>
+    <div><button class="danger" type="submit">Delete user</button></div>
+  </form>
+</section>
+{{end}}
+{{end}}

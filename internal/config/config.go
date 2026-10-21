@@ -17,6 +17,12 @@ type Config struct {
 	DB    DB     `yaml:"db"`
 	// BasePath is the URL prefix of the DAV tree.
 	BasePath string `yaml:"base_path"`
+	Admin    Admin  `yaml:"admin"`
+}
+
+type Admin struct {
+	// Enabled serves the web UI under /admin/.
+	Enabled bool `yaml:"enabled"`
 }
 
 type DB struct {
@@ -29,6 +35,7 @@ func Default() Config {
 		Listen:   ":8080",
 		Realm:    "BaikalDAV",
 		BasePath: "/dav",
+		Admin:    Admin{Enabled: true},
 		DB:       DB{Driver: "sqlite", DSN: "galdav.db"},
 	}
 }

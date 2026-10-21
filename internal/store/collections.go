@@ -104,3 +104,16 @@ func (s *Store) SyncSeq(collectionID int64) (int64, error) {
 	err := s.DB.QueryRow(`SELECT max(id) FROM changes WHERE collection_id = ?`, collectionID).Scan(&n)
 	return n.Int64, err
 }
+
+func (s *Store) GetCollectionByID(id int64) (Collection, error) {
+	c, err := scanCollection(s.DB.QueryRow(`SELECT `+collCols+` FROM collections WHERE id = ?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return c, ErrNotFound
+	}
+	return c, err
+}
+
+func (s *Store) ObjectCount(collectionID int64) (n int, err error) {
+	err = s.DB.QueryRow(`SELECT count(*) FROM objects WHERE collection_id = ?`, collectionID).Scan(&n)
+	return
+}

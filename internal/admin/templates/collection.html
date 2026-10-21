@@ -1,0 +1,31 @@
+{{define "content"}}
+{{with .Data}}
+<h1>{{if .IsCal}}Calendar{{else}}Address book{{end}}: {{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</h1>
+<section>
+  <p>Address: <code>{{.URL}}</code></p>
+  <p class="muted">{{.Count}} {{if .IsCal}}events/tasks{{else}}contacts{{end}}{{if .IsCal}} · allowed: {{.Components}}{{end}}</p>
+</section>
+<section>
+  <h2>Properties</h2>
+  <form method="post" action="/admin/collections/{{.ID}}" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Name <input type="text" name="name" value="{{.DisplayName}}"></label>
+    <label>Description <input type="text" name="description" value="{{.Description}}"></label>
+    {{if .IsCal}}
+    <label>Colour <input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></label>
+    <label>Sort order <input type="number" name="order" value="{{.SortOrder}}"></label>
+    {{end}}
+    <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/">Back</a></div>
+  </form>
+</section>
+<section>
+  <h2>Delete</h2>
+  <p>This permanently deletes the {{if .IsCal}}calendar{{else}}address book{{end}} and everything in it.</p>
+  <form method="post" action="/admin/collections/{{.ID}}/delete" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Type <code>{{.Slug}}</code> to confirm <input type="text" name="confirm" autocomplete="off"></label>
+    <div><button class="danger" type="submit">Delete permanently</button></div>
+  </form>
+</section>
+{{end}}
+{{end}}

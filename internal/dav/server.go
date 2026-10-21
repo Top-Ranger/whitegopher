@@ -51,6 +51,9 @@ func (t target) kind() string {
 
 var slugRE = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$`)
 
+// ValidSlug reports whether s may name a collection.
+func ValidSlug(s string) bool { return slugRE.MatchString(s) }
+
 func validURI(s string) bool {
 	if s == "" || len(s) > 255 || s == "." || s == ".." {
 		return false
