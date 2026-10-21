@@ -17,6 +17,7 @@ import (
 	"github.com/bitflipp/galdav/internal/config"
 	"github.com/bitflipp/galdav/internal/dav"
 	"github.com/bitflipp/galdav/internal/importer"
+	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
@@ -69,7 +70,11 @@ func run(args []string) error {
 func serve(cfg config.Config, st *store.Store) error {
 	basePath := strings.TrimRight(cfg.BasePath, "/")
 	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm}
-	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath}
+	var mailer sched.Mailer
+	if cfg.SMTP.Host != "" {
+		mailer = &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
+	}
+	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, Sched: sched.New(st, basePath, mailer)}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", davSrv.Handler())

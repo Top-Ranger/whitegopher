@@ -304,3 +304,43 @@ func TestUserManagement(t *testing.T) {
 		t.Fatal("bob not deleted")
 	}
 }
+
+func TestEmailUniquenessAndDefaultCalendar(t *testing.T) {
+	e := newEnv(t)
+	a := &auth.Authenticator{Store: e.st, Realm: "R"}
+	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
+	rootID, _ := e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true, Email: "Root@Example.com"})
+	c := newClient()
+	resp, b := e.do(c, "POST", "/admin/login", url.Values{"username": {"root"}, "password": {"hunter2hunter2"}})
+	status(t, resp, 303, b)
+
+	// Emails are matched case-insensitively and must be unique.
+	resp, b = e.post(c, "/admin/users", "username", "bob", "password", "bobs-password", "email", "ROOT@example.com")
+	status(t, resp, 422, b)
+	contains(t, b, "belongs to another user")
+	resp, b = e.post(c, "/admin/users", "username", "bob", "password", "bobs-password", "email", "bob@example.com")
+	status(t, resp, 303, b)
+	bob, _ := e.st.UserByName("bob")
+	resp, b = e.post(c, "/admin/users/"+strconv.FormatInt(bob.ID, 10), "email", "root@example.com")
+	status(t, resp, 422, b)
+	if u, err := e.st.UserByEmail("Root@EXAMPLE.com"); err != nil || u.ID != rootID {
+		t.Fatalf("lookup: %+v %v", u, err)
+	}
+
+	// Default calendar choice.
+	resp, b = e.post(c, "/admin/collections", "kind", "calendar", "name", "Inbox", "comp_VEVENT", "1") // reserved name gets a suffix
+	status(t, resp, 303, b)
+	resp, b = e.post(c, "/admin/collections", "kind", "calendar", "name", "Work", "comp_VEVENT", "1")
+	status(t, resp, 303, b)
+	_, b = e.do(c, "GET", "/admin/account", nil)
+	contains(t, b, `value="inbox-1"`, `value="work"`, "Automatic")
+	resp, b = e.post(c, "/admin/account/default-calendar", "calendar", "work")
+	status(t, resp, 303, b)
+	if u, _ := e.st.UserByName("root"); u.DefaultCalendar != "work" {
+		t.Fatalf("default = %q", u.DefaultCalendar)
+	}
+	resp, b = e.post(c, "/admin/account/default-calendar", "calendar", "nope")
+	status(t, resp, 422, b)
+	resp, b = e.post(c, "/admin/account/default-calendar", "calendar", "inbox") // the scheduling inbox is not a calendar choice
+	status(t, resp, 422, b)
+}

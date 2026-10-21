@@ -4,6 +4,22 @@
   <p>Signed in as <strong>{{.User.Username}}</strong>{{if .User.IsAdmin}} <span class="tag">administrator</span>{{end}}.</p>
   <p>Server address for your devices: <code>{{.DAVURL}}</code></p>
 </section>
+{{with .Data}}{{if .Calendars}}
+<section>
+  <h2>Invitations</h2>
+  <p class="muted">Meeting invitations from other users are added to this calendar. They also appear in your scheduling inbox.</p>
+  <form method="post" action="/admin/account/default-calendar" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Default calendar
+      <select name="calendar">
+        <option value=""{{if not .Default}} selected{{end}}>Automatic (first calendar)</option>
+        {{range .Calendars}}<option value="{{.Slug}}"{{if eq .Slug $.Data.Default}} selected{{end}}>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</option>{{end}}
+      </select>
+    </label>
+    <div><button type="submit" class="secondary">Save</button></div>
+  </form>
+</section>
+{{end}}{{end}}
 <section>
   <h2>Change password</h2>
   <p class="muted">You will be signed out everywhere, and your devices need the new password.</p>

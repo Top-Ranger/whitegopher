@@ -5,10 +5,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/bitflipp/galdav/internal/index"
+	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -38,7 +40,7 @@ func (s *Server) mkcol(w http.ResponseWriter, r *http.Request, u store.User, t t
 		http.Error(w, "MKCALENDAR only creates calendars", http.StatusForbidden)
 		return
 	}
-	if !slugRE.MatchString(t.slug) {
+	if !ValidSlug(t.slug) {
 		http.Error(w, "invalid collection name", http.StatusForbidden)
 		return
 	}
@@ -124,9 +126,15 @@ func (s *Server) proppatch(w http.ResponseWriter, r *http.Request, u store.User,
 	}
 	var changes []change
 	updated, failed := c, false
+	var newDefault *string
 	apply := func(items []propItem, remove bool) {
 		for _, it := range items {
 			known, ok := applyProp(&updated, it, remove)
+			if c.Special == store.SpecialInbox && it.XMLName == cal("schedule-default-calendar-URL") {
+				known, ok = s.inboxDefault(u, it, remove, &newDefault)
+			} else if c.Special != "" {
+				known = false // nothing else on the inbox is settable
+			}
 			st := http.StatusOK
 			if !known {
 				st = http.StatusForbidden
@@ -150,9 +158,17 @@ func (s *Server) proppatch(w http.ResponseWriter, r *http.Request, u store.User,
 				changes[i].status = http.StatusFailedDependency
 			}
 		}
-	} else if err := s.Store.UpdateCollection(updated); err != nil {
-		s.fail(w, r, err)
-		return
+	} else {
+		var err error
+		if newDefault != nil {
+			err = s.Store.SetDefaultCalendar(u.ID, *newDefault)
+		} else if c.Special == "" {
+			err = s.Store.UpdateCollection(updated)
+		}
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
 	}
 
 	byStatus := map[int][]xml.Name{}
@@ -215,6 +231,10 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	if !ok {
 		return
 	}
+	if c.Special != "" {
+		http.Error(w, "the scheduling inbox is filled by the server", http.StatusForbidden)
+		return
+	}
 	isCal := c.Kind == store.KindCalendar
 	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]))
 	if ct != "" {
@@ -254,6 +274,12 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		CollectionID: c.ID, URI: t.uri, UID: p.UID, ETag: index.ETag(data), Data: data,
 		Component: p.Component, FirstOcc: p.First, LastOcc: p.Last,
 	}
+	var oldData []byte
+	if isCal {
+		if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
+			oldData = prev.Data
+		}
+	}
 	created, err := s.Store.PutObject(o, cond)
 	var conflict *store.UIDConflictError
 	switch {
@@ -272,7 +298,24 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("ETag", `"`+o.ETag+`"`)
+	if isCal {
+		// Implicit scheduling. It may rewrite the stored copy to record
+		// delivery status; then the ETag we would report is stale, so omit it.
+		if rewritten := s.sched().ProcessPut(u, oldData, data); rewritten != nil {
+			o.Data, o.ETag = rewritten, index.ETag(rewritten)
+			if p, bad := index.Calendar(rewritten, strings.Split(c.Components, ",")); bad == "" {
+				o.FirstOcc, o.LastOcc = p.First, p.Last
+			}
+			if _, err := s.Store.PutObject(o, store.PutCond{}); err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			o.ETag = ""
+		}
+	}
+	if o.ETag != "" {
+		w.Header().Set("ETag", `"`+o.ETag+`"`)
+	}
 	if created {
 		w.WriteHeader(http.StatusCreated)
 	} else {
@@ -301,6 +344,10 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 		if !ok {
 			return
 		}
+		if c.Special != "" {
+			http.Error(w, "the scheduling inbox cannot be deleted", http.StatusForbidden)
+			return
+		}
 		if err := s.Store.DeleteCollection(c.ID); err != nil {
 			s.fail(w, r, err)
 			return
@@ -314,6 +361,12 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 		if h := r.Header.Get("If-Match"); h != "" {
 			m = etagMatcher(h)
 		}
+		var oldData []byte
+		if c.Kind == store.KindCalendar && c.Special == "" {
+			if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
+				oldData = prev.Data
+			}
+		}
 		err := s.Store.DeleteObject(c.ID, t.uri, m)
 		switch {
 		case errors.Is(err, store.ErrNotFound):
@@ -326,9 +379,103 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 			s.fail(w, r, err)
 			return
 		}
+		if oldData != nil {
+			s.sched().ProcessDelete(u, oldData)
+		}
 	default:
 		http.Error(w, "cannot delete this resource", http.StatusForbidden)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// inboxDefault validates a schedule-default-calendar-URL update; the new
+// calendar slug is recorded in out and applied if the whole PROPPATCH succeeds.
+func (s *Server) inboxDefault(u store.User, it propItem, remove bool, out **string) (known, ok bool) {
+	slug := ""
+	if !remove {
+		if len(it.Children) == 0 {
+			return true, false
+		}
+		pu, err := url.Parse(strings.TrimSpace(it.Children[0].Text))
+		base := s.homeHref("calendars", u.Username)
+		if err != nil || !strings.HasPrefix(pu.Path, base) {
+			return true, false
+		}
+		slug = strings.Trim(strings.TrimPrefix(pu.Path, base), "/")
+		c, err := s.Store.GetCollection(u.ID, store.KindCalendar, slug)
+		if err != nil || c.Special != "" {
+			return true, false
+		}
+	}
+	*out = &slug
+	return true, true
+}
+
+// outbox serves the virtual scheduling outbox at calendars/<user>/outbox/.
+func (s *Server) outbox(w http.ResponseWriter, r *http.Request, u store.User, t target) {
+	switch {
+	case r.Method == "PROPFIND" && t.n == 3:
+		pf, err := parsePropfind(r.Body)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		writeMultistatus(w, pf, []resource{s.outboxRes(u)}, "")
+	case r.Method == http.MethodPost && t.n == 3:
+		s.outboxPost(w, r, u)
+	case t.n > 3:
+		http.NotFound(w, r)
+	default:
+		http.Error(w, "the outbox only accepts POST and PROPFIND", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) outboxPost(w http.ResponseWriter, r *http.Request, u store.User) {
+	if ct := strings.ToLower(r.Header.Get("Content-Type")); ct != "" && !strings.HasPrefix(ct, "text/calendar") {
+		writeError(w, http.StatusForbidden, "<C:supported-calendar-data/>")
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	var recipients []string
+	for _, h := range r.Header.Values("Recipient") {
+		for _, v := range strings.Split(h, ",") {
+			if v = strings.Trim(strings.TrimSpace(v), "<>\""); v != "" {
+				recipients = append(recipients, v)
+			}
+		}
+	}
+	results, err := s.sched().HandleOutbox(u, body, recipients)
+	switch {
+	case errors.Is(err, sched.ErrInvalidData):
+		writeError(w, http.StatusForbidden, "<C:valid-calendar-data/>")
+		return
+	case errors.Is(err, sched.ErrInvalidMessage):
+		writeError(w, http.StatusForbidden, "<C:valid-scheduling-message/>")
+		return
+	case errors.Is(err, sched.ErrInvalidOrganizer):
+		writeError(w, http.StatusForbidden, "<C:valid-organizer/>")
+		return
+	case err != nil:
+		s.fail(w, r, err)
+		return
+	}
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="utf-8"?>` + "\n<C:schedule-response" + nsDecl + ">")
+	for _, res := range results {
+		b.WriteString("<C:response><C:recipient>" + hrefXMLRaw(res.Recipient) + "</C:recipient>")
+		b.WriteString("<C:request-status>" + res.Status + ";" + esc(sched.StatusText[res.Status]) + "</C:request-status>")
+		if res.Data != nil {
+			b.WriteString("<C:calendar-data>" + esc(string(res.Data)) + "</C:calendar-data>")
+		}
+		b.WriteString("</C:response>")
+	}
+	b.WriteString("</C:schedule-response>")
+	w.Header().Set("Content-Type", `application/xml; charset="utf-8"`)
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, b.String())
 }

@@ -76,6 +76,9 @@ func esc(s string) string {
 	return b.String()
 }
 
+// hrefXMLRaw renders an already-formed address (e.g. mailto:) as an href.
+func hrefXMLRaw(h string) string { return "<D:href>" + esc(h) + "</D:href>" }
+
 // hrefXML renders a raw (unescaped) path as a DAV:href element.
 func hrefXML(h string) string {
 	return "<D:href>" + esc((&url.URL{Path: h}).EscapedPath()) + "</D:href>"
@@ -159,6 +162,7 @@ type propItem struct {
 	Children []struct {
 		XMLName xml.Name
 		Name    string `xml:"name,attr"`
+		Text    string `xml:",chardata"`
 	} `xml:",any"`
 }
 

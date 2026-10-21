@@ -215,3 +215,24 @@ func (s *Store) ChangedURIs(collectionID, since, upto int64) ([]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// FindByUID returns the object with the given UID in any of the user's
+// regular calendars (not the scheduling inbox).
+func (s *Store) FindByUID(ownerID int64, uid string) (Collection, Object, error) {
+	var collID int64
+	var o Object
+	err := s.DB.QueryRow(
+		`SELECT o.collection_id, o.id, o.collection_id, o.uri, o.uid, o.etag, length(o.data), o.component, o.first_occ, o.last_occ, o.data
+		 FROM objects o JOIN collections c ON c.id = o.collection_id
+		 WHERE c.owner_id = ? AND c.kind = 'calendar' AND c.special = '' AND o.uid = ?
+		 ORDER BY o.id LIMIT 1`, ownerID, uid,
+	).Scan(&collID, &o.ID, &o.CollectionID, &o.URI, &o.UID, &o.ETag, &o.Size, &o.Component, &o.FirstOcc, &o.LastOcc, &o.Data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Collection{}, o, ErrNotFound
+	}
+	if err != nil {
+		return Collection{}, o, err
+	}
+	c, err := s.GetCollectionByID(collID)
+	return c, o, err
+}

@@ -19,6 +19,19 @@ type Config struct {
 	// BasePath is the URL prefix of the DAV tree.
 	BasePath string `yaml:"base_path"`
 	Admin    Admin  `yaml:"admin"`
+	// SMTP, when Host is set, delivers invitations to attendees who have no
+	// account here, as iMIP email.
+	SMTP SMTP `yaml:"smtp"`
+}
+
+type SMTP struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	// Password may also come from GALDAV_SMTP_PASSWORD, which takes precedence.
+	Password string `yaml:"password"`
+	// From is the sender, e.g. "galdav <noreply@example.com>".
+	From string `yaml:"from"`
 }
 
 type Admin struct {
@@ -42,6 +55,7 @@ func Default() Config {
 		Realm:    "BaikalDAV",
 		BasePath: "/dav",
 		Admin:    Admin{Enabled: true},
+		SMTP:     SMTP{Port: 587},
 		DB:       DB{Driver: "mysql"},
 	}
 }
@@ -63,13 +77,19 @@ func Load(path string) (Config, error) {
 	return c, nil
 }
 
-// DSNEnv overrides db.dsn when set.
-const DSNEnv = "GALDAV_DB_DSN"
+// Environment variables that override file settings.
+const (
+	DSNEnv          = "GALDAV_DB_DSN"
+	SMTPPasswordEnv = "GALDAV_SMTP_PASSWORD"
+)
 
 // ApplyEnv applies environment overrides.
 func (c *Config) ApplyEnv() {
 	if v := os.Getenv(DSNEnv); v != "" {
 		c.DB.DSN = v
+	}
+	if v := os.Getenv(SMTPPasswordEnv); v != "" {
+		c.SMTP.Password = v
 	}
 }
 
@@ -77,6 +97,9 @@ func (c *Config) ApplyEnv() {
 func (c Config) Validate() error {
 	if c.DB.Driver != "" && c.DB.Driver != "mysql" {
 		return fmt.Errorf("db.driver %q is not supported: only \"mysql\" (MariaDB included) is", c.DB.Driver)
+	}
+	if c.SMTP.Host != "" && c.SMTP.From == "" {
+		return fmt.Errorf("smtp.from is required when smtp.host is set")
 	}
 	if c.DB.DSN == "" {
 		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)

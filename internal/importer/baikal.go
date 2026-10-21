@@ -195,8 +195,13 @@ func (im *importer) importCalendars() error {
 		if comps == "" {
 			comps = "VEVENT,VTODO"
 		}
+		slug := c.uri
+		if slug == "inbox" || slug == "outbox" { // reserved for scheduling
+			slug += "-calendar"
+			im.res.warnf("calendar %q renamed to %q: the old name is reserved for scheduling", c.uri, slug)
+		}
 		coll := store.Collection{
-			OwnerID: owner, Kind: store.KindCalendar, Slug: c.uri, DisplayName: c.name.String,
+			OwnerID: owner, Kind: store.KindCalendar, Slug: slug, DisplayName: c.name.String,
 			Description: c.desc.String, Color: c.color.String, SortOrder: int(c.order.Int64),
 			Components: comps, Timezone: c.tz.String,
 		}

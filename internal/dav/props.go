@@ -58,12 +58,41 @@ func (s *Server) principalRes(u store.User) resource {
 		name = u.Username
 	}
 	return resource{href: s.principalHref(u.Username), props: map[xml.Name]string{
-		dav("resourcetype"):           "<D:collection/><D:principal/>",
-		dav("displayname"):            esc(name),
-		dav("current-user-principal"): hrefXML(s.principalHref(u.Username)),
-		dav("principal-URL"):          hrefXML(s.principalHref(u.Username)),
-		cal("calendar-home-set"):      hrefXML(s.homeHref("calendars", u.Username)),
-		card("addressbook-home-set"):  hrefXML(s.homeHref("addressbooks", u.Username)),
+		dav("resourcetype"):              "<D:collection/><D:principal/>",
+		dav("displayname"):               esc(name),
+		dav("current-user-principal"):    hrefXML(s.principalHref(u.Username)),
+		dav("principal-URL"):             hrefXML(s.principalHref(u.Username)),
+		cal("calendar-home-set"):         hrefXML(s.homeHref("calendars", u.Username)),
+		cal("schedule-inbox-URL"):        hrefXML(s.collHref("calendars", u.Username, "inbox")),
+		cal("schedule-outbox-URL"):       hrefXML(s.collHref("calendars", u.Username, "outbox")),
+		cal("calendar-user-type"):        "INDIVIDUAL",
+		cal("calendar-user-address-set"): addressSet(s.sched().Addresses(u)),
+		card("addressbook-home-set"):     hrefXML(s.homeHref("addressbooks", u.Username)),
+	}}
+}
+
+func addressSet(addrs []string) string {
+	var b strings.Builder
+	for _, a := range addrs {
+		b.WriteString("<D:href>" + esc(a) + "</D:href>")
+	}
+	return b.String()
+}
+
+const (
+	privInbox  = privAll + "<D:privilege><C:schedule-deliver/></D:privilege><D:privilege><C:schedule-deliver-invite/></D:privilege><D:privilege><C:schedule-deliver-reply/></D:privilege><D:privilege><C:schedule-query-freebusy/></D:privilege>"
+	privOutbox = privAll + "<D:privilege><C:schedule-send/></D:privilege><D:privilege><C:schedule-send-invite/></D:privilege><D:privilege><C:schedule-send-reply/></D:privilege><D:privilege><C:schedule-send-freebusy/></D:privilege>"
+)
+
+// outboxRes is the virtual scheduling outbox: it holds nothing and only
+// accepts POSTs.
+func (s *Server) outboxRes(u store.User) resource {
+	return resource{href: s.collHref("calendars", u.Username, "outbox"), props: map[xml.Name]string{
+		dav("resourcetype"):               "<D:collection/><C:schedule-outbox/>",
+		dav("displayname"):                "Outbox",
+		dav("owner"):                      hrefXML(s.principalHref(u.Username)),
+		dav("current-user-principal"):     hrefXML(s.principalHref(u.Username)),
+		dav("current-user-privilege-set"): privOutbox,
 	}}
 }
 
@@ -93,8 +122,20 @@ func (s *Server) collectionRes(u store.User, c store.Collection, seq int64) reso
 		dav("sync-token"):                 syncToken(seq),
 		cs("getctag"):                     syncToken(seq),
 	}
-	if c.Kind == store.KindCalendar {
+	if c.Special == store.SpecialInbox {
+		p[dav("resourcetype")] = "<D:collection/><C:schedule-inbox/>"
+		p[dav("current-user-privilege-set")] = privInbox
+		p[dav("supported-report-set")] = reportSet("<C:calendar-multiget/>", "<C:calendar-query/>")
+		if def, err := s.Store.DefaultCalendar(u, "VEVENT"); err == nil {
+			p[cal("schedule-default-calendar-URL")] = hrefXML(s.collHref("calendars", u.Username, def.Slug))
+		}
+	} else if c.Kind == store.KindCalendar {
 		p[dav("resourcetype")] = "<D:collection/><C:calendar/>"
+		if c.Transparent {
+			p[cal("schedule-calendar-transp")] = "<C:transparent/>"
+		} else {
+			p[cal("schedule-calendar-transp")] = "<C:opaque/>"
+		}
 		p[cal("calendar-description")] = esc(c.Description)
 		p[apl("calendar-order")] = strconv.Itoa(c.SortOrder)
 		if c.Color != "" {
@@ -108,7 +149,7 @@ func (s *Server) collectionRes(u store.User, c store.Collection, seq int64) reso
 			comps.WriteString(`<C:comp name="` + esc(n) + `"/>`)
 		}
 		p[cal("supported-calendar-component-set")] = comps.String()
-		p[dav("supported-report-set")] = reportSet("<C:calendar-multiget/>", "<C:calendar-query/>")
+		p[dav("supported-report-set")] = reportSet("<C:calendar-multiget/>", "<C:calendar-query/>", "<C:free-busy-query/>")
 		p[cal("supported-calendar-data")] = `<C:calendar-data content-type="text/calendar" version="2.0"/>`
 	} else {
 		p[dav("resourcetype")] = "<D:collection/><A:addressbook/>"
@@ -183,6 +224,20 @@ func applyProp(c *store.Collection, it propItem, remove bool) (known, ok bool) {
 		c.Timezone = strings.TrimSpace(it.Text)
 		if remove {
 			c.Timezone = ""
+		}
+	case cal("schedule-calendar-transp"):
+		if !isCal || c.Special != "" {
+			return false, false
+		}
+		c.Transparent = false
+		if !remove && len(it.Children) > 0 {
+			switch it.Children[0].XMLName.Local {
+			case "transparent":
+				c.Transparent = true
+			case "opaque":
+			default:
+				return true, false
+			}
 		}
 	default:
 		return false, false

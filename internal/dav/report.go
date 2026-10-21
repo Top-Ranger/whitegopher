@@ -9,10 +9,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-ical"
 	"github.com/emersion/go-vcard"
 
+	"github.com/bitflipp/galdav/internal/index"
+	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -66,6 +69,8 @@ func (s *Server) report(w http.ResponseWriter, r *http.Request, u store.User, t 
 	switch {
 	case root == cal("calendar-multiget") && isCal, root == card("addressbook-multiget") && !isCal:
 		s.multiget(w, r, u, c, body)
+	case root == cal("free-busy-query") && isCal && c.Special == "":
+		s.freeBusyQuery(w, r, u, c, body)
 	case root == cal("calendar-query") && isCal:
 		s.calendarQuery(w, r, u, c, body)
 	case root == card("addressbook-query") && !isCal:
@@ -283,4 +288,30 @@ func (s *Server) addressbookQuery(w http.ResponseWriter, r *http.Request, u stor
 		}
 	}
 	s.respondObjects(w, u, c, req.Prop.propfind(), hits)
+}
+
+// freeBusyQuery answers a free-busy-query REPORT (RFC 4791 7.10) for one
+// calendar with a VFREEBUSY.
+func (s *Server) freeBusyQuery(w http.ResponseWriter, r *http.Request, u store.User, c store.Collection, body []byte) {
+	var req struct {
+		TimeRange timeRange `xml:"urn:ietf:params:xml:ns:caldav time-range"`
+	}
+	if err := xml.Unmarshal(body, &req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	start, end, err := req.TimeRange.bounds()
+	if err != nil || start.IsZero() || end.IsZero() || !end.After(start) {
+		writeError(w, http.StatusForbidden, "<C:valid-filter/>")
+		return
+	}
+	c.Transparent = false // asked for explicitly
+	busy, tent, err := s.sched().FreeBusy(u, []store.Collection{c}, start, end)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	uid := "fb-" + index.ETag([]byte(start.String()+end.String()+c.Slug))
+	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+	w.Write(sched.RenderFreeBusy("", uid, "", "", start, end, time.Now(), busy, tent))
 }

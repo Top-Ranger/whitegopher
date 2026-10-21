@@ -4,22 +4,37 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 type User struct {
-	ID           int64
-	Username     string
-	DisplayName  string
+	ID          int64
+	Username    string
+	DisplayName string
+	// Email is stored lower-case; it is the user's calendar-user address.
 	Email        string
 	DigestHA1    string
 	PasswordHash string
 	IsAdmin      bool
+	// DefaultCalendar is the slug of the calendar receiving invitations;
+	// empty means the first calendar.
+	DefaultCalendar string
 }
+
+const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar`
+
+func scanUser(sc interface{ Scan(...any) error }) (User, error) {
+	var u User
+	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar)
+	return u, err
+}
+
+func normEmail(e string) string { return strings.ToLower(strings.TrimSpace(e)) }
 
 func (s *Store) CreateUser(u User) (int64, error) {
 	res, err := s.DB.Exec(
 		`INSERT INTO users (username, display_name, email, digest_ha1, password_hash, is_admin) VALUES (?, ?, ?, ?, ?, ?)`,
-		u.Username, u.DisplayName, u.Email, u.DigestHA1, u.PasswordHash, u.IsAdmin)
+		u.Username, u.DisplayName, normEmail(u.Email), u.DigestHA1, u.PasswordHash, u.IsAdmin)
 	if isUnique(err) {
 		return 0, ErrExists
 	}
@@ -30,12 +45,18 @@ func (s *Store) CreateUser(u User) (int64, error) {
 }
 
 func (s *Store) UserByName(name string) (User, error) {
-	var u User
-	err := s.DB.QueryRow(
-		`SELECT id, username, display_name, email, digest_ha1, password_hash, is_admin FROM users WHERE username = ?`, name,
-	).Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin)
+	u, err := scanUser(s.DB.QueryRow(`SELECT `+userCols+` FROM users WHERE username = ?`, name))
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrNotFound
+	}
+	return u, err
+}
+
+// UserByEmail finds the user whose (lower-cased) email equals email.
+func (s *Store) UserByEmail(email string) (User, error) {
+	u, err := scanUser(s.DB.QueryRow(`SELECT `+userCols+` FROM users WHERE email = ? ORDER BY id LIMIT 1`, normEmail(email)))
+	if errors.Is(err, sql.ErrNoRows) || normEmail(email) == "" {
+		return User{}, ErrNotFound
 	}
 	return u, err
 }
@@ -46,10 +67,7 @@ func (s *Store) SetPasswordHash(id int64, hash string) error {
 }
 
 func (s *Store) UserByID(id int64) (User, error) {
-	var u User
-	err := s.DB.QueryRow(
-		`SELECT id, username, display_name, email, digest_ha1, password_hash, is_admin FROM users WHERE id = ?`, id,
-	).Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin)
+	u, err := scanUser(s.DB.QueryRow(`SELECT `+userCols+` FROM users WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrNotFound
 	}
@@ -57,16 +75,15 @@ func (s *Store) UserByID(id int64) (User, error) {
 }
 
 func (s *Store) ListUsers() ([]User, error) {
-	rows, err := s.DB.Query(
-		`SELECT id, username, display_name, email, digest_ha1, password_hash, is_admin FROM users ORDER BY username`)
+	rows, err := s.DB.Query(`SELECT ` + userCols + ` FROM users ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []User
 	for rows.Next() {
-		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin); err != nil {
+		u, err := scanUser(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, u)
@@ -107,7 +124,7 @@ func (s *Store) CreateUserIfNone(u User) (int64, error) {
 	res, err := conn.ExecContext(ctx,
 		`INSERT INTO users (username, display_name, email, digest_ha1, password_hash, is_admin)
 		 SELECT ?, ?, ?, ?, ?, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM users)`,
-		u.Username, u.DisplayName, u.Email, u.DigestHA1, u.PasswordHash, u.IsAdmin)
+		u.Username, u.DisplayName, normEmail(u.Email), u.DigestHA1, u.PasswordHash, u.IsAdmin)
 	if err != nil {
 		return 0, err
 	}
@@ -120,7 +137,7 @@ func (s *Store) CreateUserIfNone(u User) (int64, error) {
 // UpdateUser writes the profile fields of u.
 func (s *Store) UpdateUser(u User) error {
 	_, err := s.DB.Exec(`UPDATE users SET display_name = ?, email = ?, is_admin = ? WHERE id = ?`,
-		u.DisplayName, u.Email, u.IsAdmin, u.ID)
+		u.DisplayName, normEmail(u.Email), u.IsAdmin, u.ID)
 	return err
 }
 
@@ -143,5 +160,11 @@ func (s *Store) SetCredentials(id int64, hash, ha1 string) error {
 
 func (s *Store) DeleteUser(id int64) error {
 	_, err := s.DB.Exec(`DELETE FROM users WHERE id = ?`, id)
+	return err
+}
+
+// SetDefaultCalendar records which calendar receives invitations.
+func (s *Store) SetDefaultCalendar(userID int64, slug string) error {
+	_, err := s.DB.Exec(`UPDATE users SET default_calendar = ? WHERE id = ?`, slug, userID)
 	return err
 }

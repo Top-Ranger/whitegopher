@@ -67,6 +67,9 @@ func (s *Server) slugFor(ownerID int64, kind, wanted, name string) (string, bool
 			slug = randomHex(4)
 		}
 	}
+	if !explicit && !dav.ValidSlug(slug) && dav.ValidSlug(slug+"-1") {
+		slug += "-1" // e.g. a name that collides with a reserved one like "inbox"
+	}
 	if !dav.ValidSlug(slug) {
 		return "", false
 	}

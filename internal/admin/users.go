@@ -9,14 +9,52 @@ import (
 	"github.com/bitflipp/galdav/internal/store"
 )
 
+type accountData struct {
+	Calendars []store.Collection
+	// Default is the slug of the calendar receiving invitations ("" = automatic).
+	Default string
+}
+
+func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
+	cals, err := s.Store.ListCollections(sess.User.ID, store.KindCalendar)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.render(w, r, "account", status, page{Title: "Account", Nav: "account", Error: errMsg,
+		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar}})
+}
+
 func (s *Server) accountForm(w http.ResponseWriter, r *http.Request, sess *session) {
-	s.render(w, r, "account", http.StatusOK, page{Title: "Account", Nav: "account"})
+	s.accountPage(w, r, sess, http.StatusOK, "")
+}
+
+func (s *Server) setDefaultCalendar(w http.ResponseWriter, r *http.Request, sess *session) {
+	slug := r.PostFormValue("calendar")
+	if slug != "" {
+		if c, err := s.Store.GetCollection(sess.User.ID, store.KindCalendar, slug); err != nil || c.Special != "" {
+			s.accountPage(w, r, sess, http.StatusUnprocessableEntity, "Unknown calendar.")
+			return
+		}
+	}
+	if err := s.Store.SetDefaultCalendar(sess.User.ID, slug); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/account?ok=saved", http.StatusSeeOther)
+}
+
+// emailTaken reports whether another user already uses email.
+func (s *Server) emailTaken(email string, self int64) bool {
+	if email == "" {
+		return false
+	}
+	u, err := s.Store.UserByEmail(email)
+	return err == nil && u.ID != self
 }
 
 func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request, sess *session) {
-	redo := func(msg string) {
-		s.render(w, r, "account", http.StatusUnprocessableEntity, page{Title: "Account", Nav: "account", Error: msg})
-	}
+	redo := func(msg string) { s.accountPage(w, r, sess, http.StatusUnprocessableEntity, msg) }
 	if _, ok := s.Auth.Verify(sess.User.Username, r.PostFormValue("current")); !ok {
 		redo("Current password is wrong.")
 		return
@@ -91,6 +129,10 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request, sess *sessio
 		redo("That username is taken.")
 		return
 	}
+	if s.emailTaken(r.PostFormValue("email"), 0) {
+		redo("That email address belongs to another user.")
+		return
+	}
 	hash, ha1, err := s.Auth.NewCredentials(name, pw)
 	if err == nil {
 		_, err = s.Store.CreateUser(store.User{
@@ -161,6 +203,10 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request, sess *sessio
 			s.userPage(w, r, u, http.StatusUnprocessableEntity, "At least one administrator is required.")
 			return
 		}
+	}
+	if s.emailTaken(u.Email, u.ID) {
+		s.userPage(w, r, u, http.StatusUnprocessableEntity, "That email address belongs to another user.")
+		return
 	}
 	u.IsAdmin = wantAdmin
 	if err := s.Store.UpdateUser(u); err != nil {

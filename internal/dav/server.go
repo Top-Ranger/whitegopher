@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/bitflipp/galdav/internal/auth"
+	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -15,6 +17,19 @@ type Server struct {
 	Store    *store.Store
 	Auth     *auth.Authenticator
 	BasePath string // e.g. "/dav", no trailing slash
+	// Sched performs scheduling; if nil, a service without email delivery
+	// is created on first use.
+	Sched *sched.Service
+	once  sync.Once
+}
+
+func (s *Server) sched() *sched.Service {
+	s.once.Do(func() {
+		if s.Sched == nil {
+			s.Sched = sched.New(s.Store, s.BasePath, nil)
+		}
+	})
+	return s.Sched
 }
 
 const maxBody = 10 << 20
@@ -52,7 +67,10 @@ func (t target) kind() string {
 var slugRE = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$`)
 
 // ValidSlug reports whether s may name a collection.
-func ValidSlug(s string) bool { return slugRE.MatchString(s) }
+func ValidSlug(s string) bool { return slugRE.MatchString(s) && !reservedSlug(s) }
+
+// reservedSlug names the scheduling collections, which are not user-creatable.
+func reservedSlug(s string) bool { return s == "inbox" || s == "outbox" }
 
 func validURI(s string) bool {
 	if s == "" || len(s) > 255 || s == "." || s == ".." {
@@ -120,13 +138,17 @@ func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("DAV", "1, 3, access-control, calendar-access, addressbook, extended-mkcol")
-		w.Header().Set("Allow", "OPTIONS, PROPFIND, PROPPATCH, REPORT, MKCALENDAR, MKCOL, GET, HEAD, PUT, DELETE")
+		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol")
+		w.Header().Set("Allow", "OPTIONS, PROPFIND, PROPPATCH, REPORT, POST, MKCALENDAR, MKCOL, GET, HEAD, PUT, DELETE")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	t, ok := s.locate(w, r, u)
 	if !ok {
+		return
+	}
+	if t.n >= 3 && t.area == "calendars" && t.slug == "outbox" {
+		s.outbox(w, r, u, t)
 		return
 	}
 	switch r.Method {
@@ -151,6 +173,12 @@ func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 
 // lookupCollection resolves t's collection, writing 404 on absence.
 func (s *Server) lookupCollection(w http.ResponseWriter, r *http.Request, u store.User, t target) (store.Collection, bool) {
+	if t.kind() == store.KindCalendar && t.slug == store.SpecialInbox {
+		if _, err := s.Store.Inbox(u.ID); err != nil { // created on first use
+			s.fail(w, r, err)
+			return store.Collection{}, false
+		}
+	}
 	c, err := s.Store.GetCollection(u.ID, t.kind(), t.slug)
 	if errors.Is(err, store.ErrNotFound) {
 		http.NotFound(w, r)
@@ -213,6 +241,15 @@ func (s *Server) propfind(w http.ResponseWriter, r *http.Request, u store.User, 
 					return
 				}
 				out = append(out, s.collectionRes(u, c, seq))
+			}
+			if t.area == "calendars" {
+				inbox, err := s.Store.Inbox(u.ID)
+				if err != nil {
+					s.fail(w, r, err)
+					return
+				}
+				seq, _ := s.Store.SyncSeq(inbox.ID)
+				out = append(out, s.collectionRes(u, inbox, seq), s.outboxRes(u))
 			}
 		}
 	case 3:

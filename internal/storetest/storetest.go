@@ -3,7 +3,9 @@
 // Tests need a MySQL/MariaDB server: set GALDAV_TEST_MYSQL_DSN to a
 // go-sql-driver DSN with rights to create and drop databases, e.g.
 // "root@tcp(127.0.0.1:3306)/". Each call creates a fresh database and drops
-// it on cleanup. Without the variable, tests that need a store are skipped.
+// it on cleanup. Without the variable such tests FAIL, so that a green run
+// always means the database tests ran; set GALDAV_TEST_SKIP_DB=1 to skip
+// them deliberately.
 package storetest
 
 import (
@@ -21,6 +23,9 @@ import (
 // DSNEnv names the environment variable that selects the test server.
 const DSNEnv = "GALDAV_TEST_MYSQL_DSN"
 
+// SkipEnv, when set to 1, turns the missing-database failure into a skip.
+const SkipEnv = "GALDAV_TEST_SKIP_DB"
+
 // New returns a fresh store that is closed when the test ends.
 func New(t testing.TB) *store.Store {
 	t.Helper()
@@ -32,13 +37,16 @@ func New(t testing.TB) *store.Store {
 	return st
 }
 
-// DSN returns a DSN for a fresh empty database, or skips the test when no
-// server is configured.
+// DSN returns a DSN for a fresh empty database. Without a configured server
+// the test fails (or is skipped when SkipEnv is 1).
 func DSN(t testing.TB) string {
 	t.Helper()
 	base := os.Getenv(DSNEnv)
 	if base == "" {
-		t.Skipf("set %s to run tests that need a database", DSNEnv)
+		if os.Getenv(SkipEnv) == "1" {
+			t.Skipf("%s=1: skipping test that needs a database", SkipEnv)
+		}
+		t.Fatalf("no test database: set %s to a MySQL/MariaDB DSN (or %s=1 to skip these tests)", DSNEnv, SkipEnv)
 	}
 	return freshDatabase(t, base)
 }
