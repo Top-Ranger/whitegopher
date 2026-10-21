@@ -1,0 +1,25 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//galdav client tests//EN
+BEGIN:VEVENT
+UID:ct-rich@galdav.test
+DTSTAMP:20260101T000000Z
+DTSTART:@D5@T170000Z
+DTEND:@D5@T180000Z
+SUMMARY:CT Café ☕ 日本語 – unicode, alarm, long text
+LOCATION:Zürich\, Bahnhofstraße 1
+URL:https://example.com/meeting
+CATEGORIES:work,test
+CLASS:PRIVATE
+PRIORITY:3
+DESCRIPTION:Line one.\nLine two with a semicolon\; and a comma\, and "quotes".\n
+ This description is deliberately long so that it is folded across several
+  lines: Lorem ipsum dolor sit amet\, consectetur adipiscing elit\, sed do eiu
+ smod tempor incididunt ut labore et dolore magna aliqua.
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+DESCRIPTION:Reminder
+END:VALARM
+END:VEVENT
+END:VCALENDAR

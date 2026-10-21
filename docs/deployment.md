@@ -153,7 +153,8 @@ Create the users first (admin UI → Users → New user). Give each user an
 
 Create the first calendar and address book in the admin UI so the client has
 something to sync. The client-testing status is stated in
-[features.md](features.md): please report anything that misbehaves.
+[features.md](features.md); before relying on a new installation, work through
+[client-testing.md](client-testing.md) and report anything that misbehaves.
 
 ## 8. Migrating from Baikal
 

@@ -1,0 +1,8 @@
+BEGIN:VCARD
+VERSION:4.0
+UID:urn:uuid:11111111-2222-3333-4444-555555555555
+FN:Grace Hopper
+N:Hopper;Grace;;;
+EMAIL;PREF=1:grace@example.com
+TEL;VALUE=uri;TYPE=work:tel:+1-555-0100
+END:VCARD

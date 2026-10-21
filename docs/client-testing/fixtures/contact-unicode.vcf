@@ -1,0 +1,13 @@
+BEGIN:VCARD
+VERSION:3.0
+UID:ct-contact-unicode@galdav.test
+FN:Zoë Müller-Åström
+N:Müller-Åström;Zoë;;;
+NICKNAME:日本語
+EMAIL;TYPE=HOME:zoe@example.org
+ADR;TYPE=HOME:;;Bahnhofstraße 1;Zürich;;8001;Switzerland
+NOTE:A long note that is folded across several lines to exercise unfolding in
+  clients: Lorem ipsum dolor sit amet\, consectetur adipiscing elit\, sed do
+  eiusmod tempor incididunt ut labore et dolore magna aliqua.
+BDAY:1985-04-12
+END:VCARD

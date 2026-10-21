@@ -9,7 +9,8 @@ the source of Baikal or sabre/dav.
 
 **Status: not yet tested with real clients** (DAVx5, iOS/macOS, Thunderbird).
 The automated suite is extensive, but expect client-specific quirks.
-See [docs/features.md](docs/features.md).
+See [docs/features.md](docs/features.md) and the
+[client testing checklist](docs/client-testing.md).
 
 ## What it does
 
@@ -26,6 +27,7 @@ importer for Baikal databases.
 | [docs/deployment.md](docs/deployment.md) | install, systemd, TLS proxy, clients, Baikal migration, backups, security, troubleshooting |
 | [docs/configuration.md](docs/configuration.md) | every config option, CLI command, environment variable and endpoint |
 | [docs/features.md](docs/features.md) | what works, and the known limits of each area |
+| [docs/client-testing.md](docs/client-testing.md) | checklist and test data for trying DAVx5, iOS/macOS and Thunderbird |
 | [docs/roadmap.md](docs/roadmap.md) | what comes next |
 | [deploy/](deploy) | systemd unit, example config and env file, Caddy and nginx configs |
 
