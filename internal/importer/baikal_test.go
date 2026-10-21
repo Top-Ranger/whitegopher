@@ -64,7 +64,7 @@ func sqliteFixture(t *testing.T) *sql.DB {
 
 func mysqlFixture(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("mysql", storetest.MySQLDSN(t))
+	db, err := sql.Open("mysql", storetest.DSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}

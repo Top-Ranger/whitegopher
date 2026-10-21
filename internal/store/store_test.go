@@ -3,7 +3,6 @@ package store_test
 import (
 	"bytes"
 	"errors"
-	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -160,15 +159,15 @@ func TestSyncSequenceAndCascade(t *testing.T) {
 	}
 }
 
-func TestReopenKeepsDataSQLite(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "g.db")
-	st, err := store.Open(path)
+func TestReopenKeepsData(t *testing.T) {
+	dsn := storetest.DSN(t)
+	st, err := store.Open(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
 	st.CreateUser(store.User{Username: "alice"})
 	st.Close()
-	st, err = store.Open(path) // migrations must be idempotent
+	st, err = store.Open(dsn) // migrations must be idempotent
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,26 +177,8 @@ func TestReopenKeepsDataSQLite(t *testing.T) {
 	}
 }
 
-func TestReopenKeepsDataMySQL(t *testing.T) {
-	dsn := storetest.MySQLDSN(t)
-	st, err := store.OpenDriver(store.DriverMySQL, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	st.CreateUser(store.User{Username: "alice"})
-	st.Close()
-	st, err = store.OpenDriver(store.DriverMySQL, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
-	if _, err := st.UserByName("alice"); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestUnknownDriver(t *testing.T) {
-	if _, err := store.OpenDriver("postgres", ""); err == nil {
+func TestBadDSN(t *testing.T) {
+	if _, err := store.Open("not a dsn"); err == nil {
 		t.Fatal("expected error")
 	}
 }

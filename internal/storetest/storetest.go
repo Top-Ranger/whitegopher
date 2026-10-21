@@ -1,10 +1,9 @@
 // Package storetest opens throwaway stores for tests.
 //
-// By default it returns an in-memory SQLite store. When
-// GALDAV_TEST_MYSQL_DSN is set (a go-sql-driver DSN with rights to create
-// databases, e.g. "root@tcp(127.0.0.1:3306)/"), every call creates a fresh
-// MySQL/MariaDB database instead and drops it on cleanup, so the whole test
-// suite can run against MySQL.
+// Tests need a MySQL/MariaDB server: set GALDAV_TEST_MYSQL_DSN to a
+// go-sql-driver DSN with rights to create and drop databases, e.g.
+// "root@tcp(127.0.0.1:3306)/". Each call creates a fresh database and drops
+// it on cleanup. Without the variable, tests that need a store are skipped.
 package storetest
 
 import (
@@ -19,43 +18,29 @@ import (
 	"github.com/bitflipp/galdav/internal/store"
 )
 
-// DSNEnv names the environment variable that selects MySQL.
+// DSNEnv names the environment variable that selects the test server.
 const DSNEnv = "GALDAV_TEST_MYSQL_DSN"
 
 // New returns a fresh store that is closed when the test ends.
 func New(t testing.TB) *store.Store {
 	t.Helper()
-	base := os.Getenv(DSNEnv)
-	if base == "" {
-		st, err := store.Open(":memory:")
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { st.Close() })
-		return st
-	}
-	return newMySQL(t, base)
-}
-
-// MySQLDSN returns a DSN for a fresh empty database, or skips the test when
-// MySQL testing is not configured.
-func MySQLDSN(t testing.TB) string {
-	t.Helper()
-	base := os.Getenv(DSNEnv)
-	if base == "" {
-		t.Skipf("set %s to run MySQL tests", DSNEnv)
-	}
-	return freshDatabase(t, base)
-}
-
-func newMySQL(t testing.TB, base string) *store.Store {
-	t.Helper()
-	st, err := store.OpenDriver(store.DriverMySQL, freshDatabase(t, base))
+	st, err := store.Open(DSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
 	return st
+}
+
+// DSN returns a DSN for a fresh empty database, or skips the test when no
+// server is configured.
+func DSN(t testing.TB) string {
+	t.Helper()
+	base := os.Getenv(DSNEnv)
+	if base == "" {
+		t.Skipf("set %s to run tests that need a database", DSNEnv)
+	}
+	return freshDatabase(t, base)
 }
 
 func freshDatabase(t testing.TB, base string) string {

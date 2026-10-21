@@ -43,7 +43,7 @@ func (s *Store) CreateCollection(c Collection) (int64, error) {
 		`INSERT INTO collections (owner_id, kind, slug, display_name, description, color, sort_order, components, timezone)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.OwnerID, c.Kind, c.Slug, c.DisplayName, c.Description, c.Color, c.SortOrder, c.Components, c.Timezone)
-	if s.d.isUnique(err) {
+	if isUnique(err) {
 		return 0, ErrExists
 	}
 	if err != nil {

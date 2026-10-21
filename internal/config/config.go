@@ -3,6 +3,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 
@@ -26,12 +27,12 @@ type Admin struct {
 }
 
 type DB struct {
-	// Driver is "sqlite" (DSN is a file path) or "mysql" (DSN is a
-	// go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/galdav"; the
-	// database must exist). MariaDB works as "mysql".
+	// Driver is kept for old configs; only "mysql" (the default, and also
+	// right for MariaDB) is supported.
 	Driver string `yaml:"driver"`
-	// DSN may also be supplied through the GALDAV_DB_DSN environment
-	// variable, which takes precedence, to keep passwords out of the file.
+	// DSN is a go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/galdav".
+	// The database must exist. The GALDAV_DB_DSN environment variable takes
+	// precedence, to keep passwords out of the file.
 	DSN string `yaml:"dsn"`
 }
 
@@ -41,7 +42,7 @@ func Default() Config {
 		Realm:    "BaikalDAV",
 		BasePath: "/dav",
 		Admin:    Admin{Enabled: true},
-		DB:       DB{Driver: "sqlite", DSN: "galdav.db"},
+		DB:       DB{Driver: "mysql"},
 	}
 }
 
@@ -70,4 +71,15 @@ func (c *Config) ApplyEnv() {
 	if v := os.Getenv(DSNEnv); v != "" {
 		c.DB.DSN = v
 	}
+}
+
+// Validate reports configuration errors.
+func (c Config) Validate() error {
+	if c.DB.Driver != "" && c.DB.Driver != "mysql" {
+		return fmt.Errorf("db.driver %q is not supported: only \"mysql\" (MariaDB included) is", c.DB.Driver)
+	}
+	if c.DB.DSN == "" {
+		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)
+	}
+	return nil
 }

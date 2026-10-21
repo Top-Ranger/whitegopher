@@ -46,7 +46,10 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	st, err := store.OpenDriver(cfg.DB.Driver, cfg.DB.DSN)
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+	st, err := store.Open(cfg.DB.DSN)
 	if err != nil {
 		return err
 	}

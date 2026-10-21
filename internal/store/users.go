@@ -20,7 +20,7 @@ func (s *Store) CreateUser(u User) (int64, error) {
 	res, err := s.DB.Exec(
 		`INSERT INTO users (username, display_name, email, digest_ha1, password_hash, is_admin) VALUES (?, ?, ?, ?, ?, ?)`,
 		u.Username, u.DisplayName, u.Email, u.DigestHA1, u.PasswordHash, u.IsAdmin)
-	if s.d.isUnique(err) {
+	if isUnique(err) {
 		return 0, ErrExists
 	}
 	if err != nil {
@@ -87,28 +87,26 @@ func (s *Store) CountAdmins() (n int, err error) {
 // CreateUserIfNone inserts u only when the users table is empty, so that
 // first-run setup cannot be raced. It returns ErrExists otherwise.
 func (s *Store) CreateUserIfNone(u User) (int64, error) {
-	var exec func(query string, args ...any) (sql.Result, error) = s.DB.Exec
-	if s.d.name == DriverMySQL {
-		// Concurrent INSERT..SELECT into an empty InnoDB table can fail with
-		// auto-increment errors instead of losing cleanly; serialise with a
-		// named lock held on one connection.
-		ctx := context.Background()
-		conn, err := s.DB.Conn(ctx)
-		if err != nil {
-			return 0, err
-		}
-		defer conn.Close()
-		var got sql.NullInt64
-		if err := conn.QueryRowContext(ctx, `SELECT GET_LOCK('galdav_first_user', 10)`).Scan(&got); err != nil {
-			return 0, err
-		}
-		if got.Int64 != 1 {
-			return 0, errors.New("store: timed out waiting for first-user lock")
-		}
-		defer conn.ExecContext(ctx, `DO RELEASE_LOCK('galdav_first_user')`)
-		exec = func(q string, args ...any) (sql.Result, error) { return conn.ExecContext(ctx, q, args...) }
+	// Concurrent INSERT..SELECT into an empty InnoDB table can fail with
+	// auto-increment errors instead of losing cleanly; serialise with a
+	// named lock held on one connection.
+	ctx := context.Background()
+	conn, err := s.DB.Conn(ctx)
+	if err != nil {
+		return 0, err
 	}
-	res, err := exec(s.d.insertUserIfNone,
+	defer conn.Close()
+	var got sql.NullInt64
+	if err := conn.QueryRowContext(ctx, `SELECT GET_LOCK('galdav_first_user', 10)`).Scan(&got); err != nil {
+		return 0, err
+	}
+	if got.Int64 != 1 {
+		return 0, errors.New("store: timed out waiting for first-user lock")
+	}
+	defer conn.ExecContext(ctx, `DO RELEASE_LOCK('galdav_first_user')`)
+	res, err := conn.ExecContext(ctx,
+		`INSERT INTO users (username, display_name, email, digest_ha1, password_hash, is_admin)
+		 SELECT ?, ?, ?, ?, ?, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM users)`,
 		u.Username, u.DisplayName, u.Email, u.DigestHA1, u.PasswordHash, u.IsAdmin)
 	if err != nil {
 		return 0, err

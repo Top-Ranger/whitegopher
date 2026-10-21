@@ -24,31 +24,29 @@ partial `calendar-data` retrieval/`expand`, config for limits.
 
     go run ./cmd/galdav serve
 
-Open `http://localhost:8080/admin/` and create the first administrator on the
+With `db.dsn` configured, open `http://localhost:8080/admin/` and create the first administrator on the
 setup page. **The setup page is open to whoever reaches the server first**, so
 on a public host create the admin from the command line before exposing it:
 
     go run ./cmd/galdav useradd -admin alice     # password read from stdin
 
-Config is read from `config.yaml` (see `internal/config`), defaults otherwise.
+Config is read from `config.yaml` (see `internal/config`).
 Digest auth needs the realm to stay stable: it is part of the stored hash.
 
 ## Database
 
-SQLite is the default and needs nothing. For MySQL or MariaDB create an empty
-database (utf8mb4) and configure:
+galdav needs MySQL or MariaDB (the driver is pure Go, so
+`CGO_ENABLED=0 go build ./cmd/galdav` yields a static binary). Create an empty
+utf8mb4 database and a user, then configure:
 
     db:
-      driver: mysql
       dsn: "galdav:secret@tcp(127.0.0.1:3306)/galdav"
 
 `GALDAV_DB_DSN` overrides `db.dsn`, to keep the password out of the file.
-Tables are created and migrated on start. Both drivers are pure Go, so
-`CGO_ENABLED=0 go build ./cmd/galdav` yields a static binary.
+Tables are created and migrated on start.
 
-The SQLite and MySQL stores share one test suite. To run all tests against a
-MySQL/MariaDB server (it needs rights to create and drop `galdav_test_*`
-databases):
+Tests need a server too (rights to create and drop `galdav_test_*`
+databases). Without the variable below they are **skipped, not failed**:
 
     GALDAV_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
 
@@ -64,11 +62,12 @@ if needed). Changing a password ends that user's sessions.
 
 ## Import from Baikal
 
-    galdav import-baikal -dry-run /path/to/baikal/Specific/db/db.sqlite
+    galdav import-baikal -dry-run /path/to/baikal/Specific/db/db.sqlite   # Baikal's default SQLite database
     galdav import-baikal /path/to/baikal/Specific/db/db.sqlite
     galdav import-baikal -mysql 'user:pass@tcp(127.0.0.1:3306)/baikal'   # Baikal on MySQL/MariaDB
 
-The destination is whatever `config.yaml` selects.
+SQLite is supported only as a read-only import source; the server itself
+stores everything in MySQL/MariaDB.
 
 Set `realm` in `config.yaml` to Baikal's realm (default `BaikalDAV`) first so
 imported password hashes keep working. Sync tokens are not carried over;
