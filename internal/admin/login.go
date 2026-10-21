@@ -21,7 +21,7 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	ip := clientIP(r)
+	ip := s.clientIP(r)
 	if !s.limiter.allowed(ip) {
 		w.Header().Set("Retry-After", "900")
 		s.render(w, r, "login", http.StatusTooManyRequests, page{Title: "Sign in", Error: "Too many failed attempts. Try again later."})

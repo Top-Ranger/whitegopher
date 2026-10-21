@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -39,6 +40,9 @@ type Server struct {
 	Auth  *auth.Authenticator
 	// DAVPath is the URL prefix of the DAV tree (shown to users).
 	DAVPath string
+	// TrustedProxies are the peers whose X-Forwarded-For/-Proto headers are
+	// believed; for anyone else those headers are ignored.
+	TrustedProxies []netip.Prefix
 
 	pages   map[string]*template.Template
 	limiter *limiter
@@ -181,8 +185,28 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func isHTTPS(r *http.Request) bool {
-	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+func (s *Server) peerTrusted(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	a, err := netip.ParseAddr(host)
+	return err == nil && s.trusted(a.Unmap())
+}
+
+func (s *Server) trusted(a netip.Addr) bool {
+	for _, p := range s.TrustedProxies {
+		if p.Contains(a) {
+			return true
+		}
+	}
+	return false
+}
+
+// isHTTPS reports whether the client reached us over TLS, directly or via a
+// trusted proxy.
+func (s *Server) isHTTPS(r *http.Request) bool {
+	return r.TLS != nil || (s.peerTrusted(r) && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"))
 }
 
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.User) error {
@@ -193,7 +217,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: tok, Path: "/admin/", Expires: exp,
-		HttpOnly: true, Secure: isHTTPS(r), SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.isHTTPS(r), SameSite: http.SameSiteLaxMode,
 	})
 	return nil
 }
@@ -253,7 +277,7 @@ func (s *Server) adminOnly(h handler) http.HandlerFunc {
 
 func (s *Server) davURL(r *http.Request) string {
 	scheme := "http"
-	if isHTTPS(r) {
+	if s.isHTTPS(r) {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host + s.DAVPath + "/"
@@ -286,10 +310,26 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 
 func notFound(w http.ResponseWriter) { http.Error(w, "not found", http.StatusNotFound) }
 
-func clientIP(r *http.Request) string {
+// clientIP returns the address to attribute a request to. Behind a trusted
+// proxy that is the rightmost X-Forwarded-For entry that is not itself a
+// trusted proxy; otherwise the direct peer.
+func (s *Server) clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if !s.peerTrusted(r) {
+		return host
+	}
+	parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		a, err := netip.ParseAddr(strings.TrimSpace(parts[i]))
+		if err != nil {
+			return host // malformed header: fall back to the peer
+		}
+		if !s.trusted(a.Unmap()) {
+			return a.Unmap().String()
+		}
 	}
 	return host
 }

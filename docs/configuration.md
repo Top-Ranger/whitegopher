@@ -1,0 +1,81 @@
+# Configuration reference
+
+galdav reads a YAML file (default `config.yaml` in the working directory;
+choose another with `-config`), then applies environment overrides. Unknown
+keys are ignored. Example files are in [`deploy/`](../deploy).
+
+```
+galdav [-config FILE] <command>
+```
+
+| Command | Purpose |
+|---|---|
+| `serve` | run the server |
+| `useradd [-admin] [-email ADDRESS] NAME` | create a user; prompts for the password (hidden, twice), or reads one line from stdin when piped; at least 8 characters |
+| `import-baikal [-dry-run] SQLITE_FILE` | import from a Baikal SQLite database |
+| `import-baikal [-dry-run] -mysql DSN` | import from a Baikal MySQL/MariaDB database |
+
+## File options
+
+```yaml
+listen: ":8080"          # address to listen on; use "127.0.0.1:8080" behind a proxy
+realm: "BaikalDAV"       # HTTP auth realm (see below). Default BaikalDAV.
+base_path: "/dav"        # URL prefix of the DAV tree
+
+db:
+  driver: mysql          # optional; "mysql" (MariaDB included) is the only value
+  dsn: ""                # go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/galdav"
+
+admin:
+  enabled: true          # serve the web UI under /admin/
+
+proxy:
+  trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe
+
+smtp:                    # optional iMIP email for attendees without an account
+  host: ""               # empty disables email delivery
+  port: 587              # STARTTLS is used when the server offers it
+  username: ""
+  password: ""
+  from: ""               # required with host, e.g. "galdav <noreply@example.com>"
+```
+
+### Things worth knowing
+
+- **`realm` is permanent.** It is mixed into every stored Digest hash
+  (`md5(user:realm:password)`). Changing it breaks Digest logins until each
+  user's password is reset. The default `BaikalDAV` is also what Baikal uses,
+  which is what makes imported password hashes work. A new installation that
+  will never import from Baikal may choose its own value before creating users.
+- **`db.dsn`** must name an existing database; galdav creates and migrates the
+  tables itself. Special characters (`/`, `@`) in the password break the DSN
+  parser, so generate one with `openssl rand -hex 24`. Unix sockets work:
+  `user:pass@unix(/run/mysqld/mysqld.sock)/galdav`.
+- **`proxy.trusted`** matters whenever a reverse proxy is in front. Only
+  requests from these peers may set the client address (`X-Forwarded-For`)
+  and scheme (`X-Forwarded-Proto`); everyone else's headers are ignored. The
+  address drives login rate limiting and the `Secure` cookie flag. If your
+  proxy is on another host, add its address; if it is missing, all users appear
+  to come from the proxy and share one rate limit.
+- **`base_path`** changes where clients must connect; `/.well-known/*` redirects
+  follow it.
+
+## Environment variables
+
+| Variable | Effect |
+|---|---|
+| `GALDAV_DB_DSN` | overrides `db.dsn` (keeps the password out of the config file) |
+| `GALDAV_SMTP_PASSWORD` | overrides `smtp.password` |
+
+Variables used only by the test suite are described in the README
+(`GALDAV_TEST_MYSQL_DSN`, `GALDAV_TEST_SKIP_DB`).
+
+## Endpoints
+
+| Path | Purpose |
+|---|---|
+| `/dav/` | CalDAV/CardDAV (Basic or Digest auth) |
+| `/.well-known/caldav`, `/.well-known/carddav` | redirect to `/dav/` |
+| `/admin/` | web UI (session login) |
+| `/healthz` | `200 ok` when the database answers, else `503`; unauthenticated |
+| `/` | redirects to `/admin/` |

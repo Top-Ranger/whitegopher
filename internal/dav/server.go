@@ -3,6 +3,7 @@ package dav
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -199,6 +200,7 @@ func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
 		return
 	}
+	slog.Error("dav", "method", r.Method, "path", r.URL.Path, "err", err)
 	http.Error(w, "internal error", http.StatusInternalServerError)
 }
 

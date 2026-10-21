@@ -1,156 +1,78 @@
 # galdav
 
-A pure-Go CalDAV and CardDAV server, MIT licensed.
+A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
+MIT licensed. A from-scratch alternative to [Baikal](https://sabre.io/baikal/)
+that can import an existing Baikal installation.
 
 Clean-room: implemented from the RFCs and observed client behaviour, not from
-the source of Baikal or sabre/dav. Baikal databases can be imported once with
-`galdav import-baikal` (not yet implemented).
+the source of Baikal or sabre/dav.
 
-## Status
+**Status: not yet tested with real clients** (DAVx5, iOS/macOS, Thunderbird).
+The automated suite is extensive, but expect client-specific quirks.
+See [docs/features.md](docs/features.md).
 
-Working: Basic and Digest auth, discovery (`.well-known`, principals, home
-sets), calendars and address books (MKCALENDAR, extended MKCOL, PROPPATCH,
-DELETE), objects (PUT/GET/DELETE with ETags and preconditions, validation,
-UID-conflict detection), REPORTs (`calendar-multiget`, `calendar-query` with
-time-range/prop/text filters and recurrence expansion, `addressbook-multiget`,
-`addressbook-query`, `sync-collection`, `free-busy-query`), scheduling
-(below), sharing (below), an admin web UI at `/admin/` and a one-time Baikal importer.
+## What it does
 
-Not yet: `Schedule-Tag`/`If-Schedule-Tag-Match`, partial
-`calendar-data` retrieval/`expand`, inbound iMIP (replies by email), quotas,
-configurable request limits.
+Calendars (events, tasks) and address books over CalDAV/CardDAV with Basic and
+Digest auth; sync (`sync-collection`), queries and free-busy; invitations and
+replies between users, with optional email to outsiders (scheduling, RFC 6638);
+sharing between users, read-only or read-write; a web admin UI; and a one-time
+importer for Baikal databases.
 
-## Sharing
+## Documentation
 
-A calendar or address book can be shared with other local users, read-only or
-read-write. Shares are accepted automatically: the collection shows up in the
-sharee's home set (`/dav/calendars/<sharee>/<name>/`, renamed to
-`<owner>-<name>` if the name is taken) and syncs like any other. Each sharee
-keeps their own name, colour and order for it; everything else is the owner's.
-A sharee can leave by deleting the collection; deleting it as the owner
-removes it for everyone. `current-user-privilege-set` reflects the access
-level, so clients such as DAVx5 treat read-only shares as read-only.
+| | |
+|---|---|
+| [docs/deployment.md](docs/deployment.md) | install, systemd, TLS proxy, clients, Baikal migration, backups, security, troubleshooting |
+| [docs/configuration.md](docs/configuration.md) | every config option, CLI command, environment variable and endpoint |
+| [docs/features.md](docs/features.md) | what works, and the known limits of each area |
+| [docs/roadmap.md](docs/roadmap.md) | what comes next |
+| [deploy/](deploy) | systemd unit, example config and env file, Caddy and nginx configs |
 
-Manage shares in the admin UI (collection page → Sharing; "Shared with you"
-on the dashboard) or from Apple clients through the CalendarServer sharing
-protocol (`CS:share` POST, `CS:invite`, `CS:allowed-sharing-modes`).
+## Quick start (development)
 
-Limits: the CalendarServer protocol is implemented without invitation
-notifications (shares are accepted at once), and is untested with real Apple
-clients; `DAV:share-resource`, public sharing and per-object ACLs are not
-implemented. Edits made through a read-write share are plain writes: no
-scheduling messages are sent on the owner's behalf, and shared calendars do
-not count towards the sharee's free-busy.
+Needs Go 1.26+ and a MariaDB/MySQL database you can write to:
 
-## Scheduling and free-busy
-
-galdav implements CalDAV scheduling (RFC 6638) with server-side ("implicit")
-processing, advertised as `calendar-auto-schedule`:
-
-- Every user has a scheduling **inbox** (`/dav/calendars/<user>/inbox/`, a
-  read-only collection clients may delete from) and an **outbox**
-  (`.../outbox/`, POST only). The names `inbox` and `outbox` are reserved.
-- Users are matched by their account **email** (case-insensitive, unique) or
-  principal URL; they are listed in `calendar-user-address-set`.
-- When an organizer saves or deletes an event, attendees get a REQUEST or
-  CANCEL; when an attendee changes their PARTSTAT (or deletes the event) the
-  organizer gets a REPLY. Local recipients get the iTIP message in their inbox
-  **and** the event in their default calendar (settable in the admin UI or via
-  `schedule-default-calendar-URL`); organizers' copies are updated with the
-  replies, and delivery results are recorded as `SCHEDULE-STATUS`.
-  `SCHEDULE-AGENT=CLIENT` attendees are left to the client.
-- Attendees without an account receive an iMIP email if `smtp` is configured
-  (below); otherwise they are marked `5.3` (no scheduling support).
-- `free-busy-query` REPORTs and VFREEBUSY requests POSTed to the outbox
-  return busy time from all of a user's non-transparent calendars
-  (`schedule-calendar-transp`), expanding recurrences and honouring overrides,
-  `STATUS`, `TRANSP` and declined invitations. **Any authenticated user can
-  query anyone's free-busy** (times only, no details).
-
-```yaml
-smtp:
-  host: smtp.example.com
-  port: 587                      # STARTTLS is used when offered
-  username: galdav
-  from: "galdav <noreply@example.com>"
-# password: set GALDAV_SMTP_PASSWORD
+```sh
+mysql -e "CREATE DATABASE galdav CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
+export GALDAV_DB_DSN='root@tcp(127.0.0.1:3306)/galdav'
+go run ./cmd/galdav useradd -admin -email me@example.com alice   # prompts for a password
+go run ./cmd/galdav serve                                        # http://localhost:8080/admin/
 ```
 
-Known limits: invitations are sent on every organizer change (not only
-"significant" ones); recurrence overrides added by an attendee's reply to a
-series are not created; the inbox is not pruned automatically.
+For a real installation follow [docs/deployment.md](docs/deployment.md).
 
-## Run
+## Development
 
-    go run ./cmd/galdav serve
+```
+cmd/galdav/         CLI: serve, useradd, import-baikal
+internal/config/    YAML config and environment overrides
+internal/store/     MySQL/MariaDB store, embedded migrations
+internal/auth/      password hashing, Basic/Digest middleware
+internal/dav/       WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
+internal/sched/     free-busy, iTIP scheduling, iMIP email
+internal/index/     object validation and occurrence indexing
+internal/admin/     web UI (templates and static assets embedded)
+internal/importer/  one-time Baikal import
+internal/storetest/ throwaway test databases
+deploy/             deployment files
+docs/               documentation
+```
 
-With `db.dsn` configured, open `http://localhost:8080/admin/` and create the first administrator on the
-setup page. **The setup page is open to whoever reaches the server first**, so
-on a public host create the admin from the command line before exposing it:
+Tests need a MySQL/MariaDB server where they may create and drop
+`galdav_test_*` databases. Without it, database tests **fail** with an
+explanatory message, so a green run always means they ran:
 
-    go run ./cmd/galdav useradd -admin alice     # password read from stdin
+```sh
+GALDAV_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
+```
 
-Config is read from `config.yaml` (see `internal/config`).
-Digest auth needs the realm to stay stable: it is part of the stored hash.
+(`GALDAV_TEST_SKIP_DB=1` skips them on purpose; the pure unit tests in
+`internal/index` and `internal/sched` need no database.) Use `-race` when
+touching concurrency.
 
-## Database
-
-galdav needs MySQL or MariaDB (the driver is pure Go, so
-`CGO_ENABLED=0 go build ./cmd/galdav` yields a static binary). Create an empty
-utf8mb4 database and a user, then configure:
-
-    db:
-      dsn: "galdav:secret@tcp(127.0.0.1:3306)/galdav"
-
-`GALDAV_DB_DSN` overrides `db.dsn`, to keep the password out of the file.
-Tables are created and migrated on start.
-
-Tests need a server too (rights to create and drop `galdav_test_*`
-databases). Without the variable below, database tests **fail** with an
-explanatory message, so a green run always means they ran
-(`GALDAV_TEST_SKIP_DB=1` skips them on purpose):
-
-    GALDAV_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
-
-## Admin UI
-
-Served under `/admin/` (disable with `admin: {enabled: false}`). Users manage
-their own calendars, address books and password; administrators also manage
-users. Sessions are stored server-side (24 h), cookies are HttpOnly and
-SameSite=Lax (Secure behind HTTPS or `X-Forwarded-Proto: https`), forms carry
-CSRF tokens, cross-origin POSTs are rejected, and login attempts are limited
-per client IP (the direct peer address; put a trusted proxy's limits in front
-if needed). Changing a password ends that user's sessions.
-
-## Import from Baikal
-
-    galdav import-baikal -dry-run /path/to/baikal/Specific/db/db.sqlite   # Baikal's default SQLite database
-    galdav import-baikal /path/to/baikal/Specific/db/db.sqlite
-    galdav import-baikal -mysql 'user:pass@tcp(127.0.0.1:3306)/baikal'   # Baikal on MySQL/MariaDB
-
-SQLite is supported only as a read-only import source; the server itself
-stores everything in MySQL/MariaDB.
-
-Set `realm` in `config.yaml` to Baikal's realm (default `BaikalDAV`) first so
-imported password hashes keep working. Sync tokens are not carried over;
-clients do one full resync.
-
-## Layout
-
-    cmd/galdav/        CLI: serve, useradd
-    internal/config/   YAML config
-    internal/store/    MySQL/MariaDB store + embedded migrations
-    internal/sched/    free-busy, iTIP scheduling, iMIP email
-    internal/auth/     password hashing, HTTP auth middleware
-    internal/admin/    web UI (templates and static assets embedded)
-    internal/dav/      WebDAV/CalDAV/CardDAV HTTP handlers and REPORTs
-    internal/index/    object validation and occurrence indexing
-    internal/importer/ one-time Baikal import
-
-## Roadmap
-
-1. `Schedule-Tag`, partial retrieval/`expand`, inbound iMIP
-2. Hardening and docs
+The server stores everything in MySQL/MariaDB. SQLite is supported only as a
+read-only source for the Baikal importer.
 
 ## Dependencies and licences
 

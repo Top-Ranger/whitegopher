@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/netip"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -22,6 +23,15 @@ type Config struct {
 	// SMTP, when Host is set, delivers invitations to attendees who have no
 	// account here, as iMIP email.
 	SMTP SMTP `yaml:"smtp"`
+	// Proxy lists reverse proxies whose X-Forwarded-* headers are believed.
+	Proxy Proxy `yaml:"proxy"`
+}
+
+type Proxy struct {
+	// Trusted holds IP addresses or CIDR ranges. Only requests arriving from
+	// these peers may set the client address (X-Forwarded-For) and scheme
+	// (X-Forwarded-Proto) that galdav acts on. Default: loopback.
+	Trusted []string `yaml:"trusted"`
 }
 
 type SMTP struct {
@@ -56,6 +66,7 @@ func Default() Config {
 		BasePath: "/dav",
 		Admin:    Admin{Enabled: true},
 		SMTP:     SMTP{Port: 587},
+		Proxy:    Proxy{Trusted: []string{"127.0.0.1", "::1"}},
 		DB:       DB{Driver: "mysql"},
 	}
 }
@@ -93,6 +104,21 @@ func (c *Config) ApplyEnv() {
 	}
 }
 
+// TrustedProxies parses proxy.trusted into prefixes.
+func (c Config) TrustedProxies() ([]netip.Prefix, error) {
+	var out []netip.Prefix
+	for _, v := range c.Proxy.Trusted {
+		if p, err := netip.ParsePrefix(v); err == nil {
+			out = append(out, p)
+		} else if a, err := netip.ParseAddr(v); err == nil {
+			out = append(out, netip.PrefixFrom(a, a.BitLen()))
+		} else {
+			return nil, fmt.Errorf("proxy.trusted: %q is neither an IP address nor a CIDR range", v)
+		}
+	}
+	return out, nil
+}
+
 // Validate reports configuration errors.
 func (c Config) Validate() error {
 	if c.DB.Driver != "" && c.DB.Driver != "mysql" {
@@ -100,6 +126,9 @@ func (c Config) Validate() error {
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		return fmt.Errorf("smtp.from is required when smtp.host is set")
+	}
+	if _, err := c.TrustedProxies(); err != nil {
+		return err
 	}
 	if c.DB.DSN == "" {
 		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)

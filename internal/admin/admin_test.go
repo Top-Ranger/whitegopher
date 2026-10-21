@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -437,4 +438,81 @@ func TestSharingUI(t *testing.T) {
 	inbox, _ := e.st.Inbox(u.ID)
 	resp, b = e.do(root, "GET", "/admin/collections/"+strconv.FormatInt(inbox.ID, 10), nil)
 	status(t, resp, 404, b)
+}
+
+func TestTrustedProxies(t *testing.T) {
+	st := storetest.New(t)
+	a := &auth.Authenticator{Store: st, Realm: "R"}
+	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
+	st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true})
+	build := func(trusted ...string) *httptest.Server {
+		var ps []netip.Prefix
+		for _, p := range trusted {
+			ps = append(ps, netip.MustParsePrefix(p))
+		}
+		ui, err := (&admin.Server{Store: st, Auth: a, DAVPath: "/dav", TrustedProxies: ps}).Handler()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ts := httptest.NewServer(ui)
+		t.Cleanup(ts.Close)
+		return ts
+	}
+	login := func(ts *httptest.Server, pass string, hdr ...string) *http.Response {
+		req, _ := http.NewRequest("POST", ts.URL+"/admin/login", strings.NewReader(url.Values{"username": {"root"}, "password": {pass}}.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		for i := 0; i+1 < len(hdr); i += 2 {
+			req.Header.Set(hdr[i], hdr[i+1])
+		}
+		resp, err := newClient().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+	secure := func(resp *http.Response) bool {
+		for _, c := range resp.Cookies() {
+			if c.Name == "galdav_session" {
+				return c.Secure
+			}
+		}
+		t.Fatal("no session cookie")
+		return false
+	}
+
+	// Behind a trusted proxy, attempts are counted per forwarded client.
+	ts := build("127.0.0.0/8")
+	for i := 0; i < 10; i++ {
+		if r := login(ts, "wrong", "X-Forwarded-For", "203.0.113.5"); r.StatusCode != 401 {
+			t.Fatalf("attempt %d: %d", i, r.StatusCode)
+		}
+	}
+	if r := login(ts, "wrong", "X-Forwarded-For", "203.0.113.5"); r.StatusCode != 429 {
+		t.Fatalf("not rate limited: %d", r.StatusCode)
+	}
+	if r := login(ts, "wrong", "X-Forwarded-For", "203.0.113.5, 127.0.0.1"); r.StatusCode != 429 {
+		t.Fatalf("trusted hop in the chain should be skipped: %d", r.StatusCode)
+	}
+	r := login(ts, "hunter2hunter2", "X-Forwarded-For", "203.0.113.9", "X-Forwarded-Proto", "https")
+	if r.StatusCode != 303 || !secure(r) {
+		t.Fatalf("other client: %d secure=%v", r.StatusCode, secure(r))
+	}
+	// A client-supplied hop cannot hide the real one: the rightmost untrusted entry counts.
+	if r := login(ts, "wrong", "X-Forwarded-For", "1.2.3.4, 203.0.113.5"); r.StatusCode != 429 {
+		t.Fatalf("spoofed left entry evaded the limit: %d", r.StatusCode)
+	}
+
+	// Without trust the headers are ignored: everyone is the peer address.
+	ts = build()
+	for i := 0; i < 10; i++ {
+		login(ts, "wrong", "X-Forwarded-For", "198.51.100."+strconv.Itoa(i))
+	}
+	if r := login(ts, "hunter2hunter2", "X-Forwarded-For", "198.51.100.77"); r.StatusCode != 429 {
+		t.Fatalf("forged X-Forwarded-For escaped the limit: %d", r.StatusCode)
+	}
+	ts = build()
+	if r := login(ts, "hunter2hunter2", "X-Forwarded-Proto", "https"); r.StatusCode != 303 || secure(r) {
+		t.Fatalf("untrusted X-Forwarded-Proto honoured: %d secure=%v", r.StatusCode, secure(r))
+	}
 }
