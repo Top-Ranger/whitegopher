@@ -94,6 +94,10 @@ func (s *Service) lookup(addr string) (store.User, bool) {
 	return store.User{}, false
 }
 
+// Lookup finds the local user a calendar address (mailto: or principal URL)
+// belongs to.
+func (s *Service) Lookup(addr string) (store.User, bool) { return s.lookup(addr) }
+
 // --- scheduling objects -----------------------------------------------------
 
 // schedObject is a calendar object taking part in scheduling.

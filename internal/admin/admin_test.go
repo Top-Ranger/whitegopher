@@ -344,3 +344,97 @@ func TestEmailUniquenessAndDefaultCalendar(t *testing.T) {
 	resp, b = e.post(c, "/admin/account/default-calendar", "calendar", "inbox") // the scheduling inbox is not a calendar choice
 	status(t, resp, 422, b)
 }
+
+func TestSharingUI(t *testing.T) {
+	e := newEnv(t)
+	a := &auth.Authenticator{Store: e.st, Realm: "R"}
+	mk := func(name string, admin bool) int64 {
+		hash, ha1, _ := a.NewCredentials(name, name+"-password")
+		id, _ := e.st.CreateUser(store.User{Username: name, PasswordHash: hash, DigestHA1: ha1, IsAdmin: admin})
+		return id
+	}
+	mk("root", true)
+	mk("bob", false)
+	mk("eve", false)
+	login := func(name string) *http.Client {
+		c := newClient()
+		resp, b := e.do(c, "POST", "/admin/login", url.Values{"username": {name}, "password": {name + "-password"}})
+		status(t, resp, 303, b)
+		return c
+	}
+	root, bob, eve := login("root"), login("bob"), login("eve")
+
+	resp, b := e.post(root, "/admin/collections", "kind", "calendar", "name", "Team", "color", "#336699", "comp_VEVENT", "1")
+	status(t, resp, 303, b)
+	u, _ := e.st.UserByName("root")
+	cals, _ := e.st.ListCollections(u.ID, store.KindCalendar)
+	cid := strconv.FormatInt(cals[0].ID, 10)
+
+	// Validation.
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares", "username", "ghost", "access", "read")
+	status(t, resp, 422, b)
+	contains(t, b, "No such user")
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares", "username", "root", "access", "read")
+	status(t, resp, 422, b)
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares", "username", "bob", "access", "admin")
+	status(t, resp, 400, b)
+	// Other users cannot manage the owner's sharing.
+	resp, b = e.post(eve, "/admin/collections/"+cid+"/shares", "username", "eve", "access", "readwrite")
+	status(t, resp, 404, b)
+
+	// Share, see it on both sides.
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares", "username", "bob", "access", "read")
+	status(t, resp, 303, b)
+	_, b = e.do(root, "GET", "/admin/collections/"+cid, nil)
+	contains(t, b, "bob", "read only", "Stop sharing")
+	_, b = e.do(bob, "GET", "/admin/", nil)
+	contains(t, b, "Shared with you", "Team", "root", "read only")
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares", "username", "bob", "access", "readwrite") // change access
+	status(t, resp, 303, b)
+	_, b = e.do(bob, "GET", "/admin/", nil)
+	contains(t, b, "can edit")
+	_, b = e.do(eve, "GET", "/admin/", nil)
+	if strings.Contains(b, "Shared with you") {
+		t.Fatal("eve sees a share that is not hers")
+	}
+
+	// Bob's own settings for the mount.
+	bobUser, _ := e.st.UserByName("bob")
+	mounts, _ := e.st.ListMounts(bobUser.ID, store.KindCalendar)
+	sid := strconv.FormatInt(mounts[0].ShareID, 10)
+	_, b = e.do(bob, "GET", "/admin/shared/"+sid, nil)
+	contains(t, b, "Owned by", "root", "Leave")
+	resp, b = e.post(bob, "/admin/shared/"+sid, "name", "Root's team", "color", "nope")
+	status(t, resp, 422, b)
+	resp, b = e.post(bob, "/admin/shared/"+sid, "name", "Rootsteam", "color", "#445566", "order", "3")
+	status(t, resp, 303, b)
+	m, _ := e.st.MountByID(bobUser.ID, mounts[0].ShareID)
+	if m.DisplayName != "Rootsteam" || m.Color != "#445566" || m.SortOrder != 3 {
+		t.Fatalf("mount: %+v", m)
+	}
+	if orig, _ := e.st.GetCollectionByID(cals[0].ID); orig.DisplayName != "Team" || orig.Color != "#336699" {
+		t.Fatalf("owner's collection changed: %+v", orig)
+	}
+	// Mounts of other users are off limits.
+	resp, b = e.do(eve, "GET", "/admin/shared/"+sid, nil)
+	status(t, resp, 404, b)
+	resp, b = e.post(eve, "/admin/shared/"+sid+"/leave")
+	status(t, resp, 404, b)
+
+	// Bob leaves; sharing again and then removing from the owner's side also works.
+	resp, b = e.post(bob, "/admin/shared/"+sid+"/leave")
+	status(t, resp, 303, b)
+	if m, _ := e.st.ListMounts(bobUser.ID, store.KindCalendar); len(m) != 0 {
+		t.Fatal("still mounted")
+	}
+	e.post(root, "/admin/collections/"+cid+"/shares", "username", "bob", "access", "read")
+	resp, b = e.post(root, "/admin/collections/"+cid+"/shares/"+strconv.FormatInt(bobUser.ID, 10)+"/remove")
+	status(t, resp, 303, b)
+	if sh, _ := e.st.Sharees(cals[0].ID); len(sh) != 0 {
+		t.Fatal("share not removed")
+	}
+	// The scheduling inbox is not reachable as a collection page.
+	inbox, _ := e.st.Inbox(u.ID)
+	resp, b = e.do(root, "GET", "/admin/collections/"+strconv.FormatInt(inbox.ID, 10), nil)
+	status(t, resp, 404, b)
+}

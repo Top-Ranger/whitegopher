@@ -29,6 +29,14 @@ type Collection struct {
 	Special string
 	// Transparent calendars are left out of free-busy.
 	Transparent bool
+
+	// The fields below are set only on collections resolved through a share
+	// (ResolveCollection, ListMounts): such a value is a view of the owner's
+	// collection carrying the sharee's own name, colour, order and slug. It
+	// must never be written back with UpdateCollection.
+	Access    string // "" for the owner, else AccessRead or AccessReadWrite
+	ShareID   int64
+	OwnerName string // username of the owner
 }
 
 const SpecialInbox = "inbox"

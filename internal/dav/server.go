@@ -156,6 +156,8 @@ func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 		s.propfind(w, r, u, t)
 	case "REPORT":
 		s.report(w, r, u, t)
+	case http.MethodPost:
+		s.postCollection(w, r, u, t)
 	case "PROPPATCH":
 		s.proppatch(w, r, u, t)
 	case "MKCALENDAR", "MKCOL":
@@ -179,7 +181,7 @@ func (s *Server) lookupCollection(w http.ResponseWriter, r *http.Request, u stor
 			return store.Collection{}, false
 		}
 	}
-	c, err := s.Store.GetCollection(u.ID, t.kind(), t.slug)
+	c, err := s.Store.ResolveCollection(u.ID, t.kind(), t.slug)
 	if errors.Is(err, store.ErrNotFound) {
 		http.NotFound(w, r)
 		return c, false
@@ -234,6 +236,12 @@ func (s *Server) propfind(w http.ResponseWriter, r *http.Request, u store.User, 
 				s.fail(w, r, err)
 				return
 			}
+			mounts, err := s.Store.ListMounts(u.ID, t.kind())
+			if err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			cs = append(cs, mounts...)
 			for _, c := range cs {
 				seq, err := s.Store.SyncSeq(c.ID)
 				if err != nil {

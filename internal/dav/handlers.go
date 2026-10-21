@@ -44,11 +44,11 @@ func (s *Server) mkcol(w http.ResponseWriter, r *http.Request, u store.User, t t
 		http.Error(w, "invalid collection name", http.StatusForbidden)
 		return
 	}
-	if _, err := s.Store.GetCollection(u.ID, kind, t.slug); err == nil {
-		http.Error(w, "already exists", http.StatusMethodNotAllowed)
-		return
-	} else if !errors.Is(err, store.ErrNotFound) {
+	if taken, err := s.Store.SlugTaken(u.ID, kind, t.slug); err != nil {
 		s.fail(w, r, err)
+		return
+	} else if taken {
+		http.Error(w, "already exists", http.StatusMethodNotAllowed)
 		return
 	}
 	pu, err := parsePropUpdate(r.Body)
@@ -134,6 +134,8 @@ func (s *Server) proppatch(w http.ResponseWriter, r *http.Request, u store.User,
 				known, ok = s.inboxDefault(u, it, remove, &newDefault)
 			} else if c.Special != "" {
 				known = false // nothing else on the inbox is settable
+			} else if c.Access != "" && !shareeSettable(it) {
+				known = false // sharees may only change their own presentation
 			}
 			st := http.StatusOK
 			if !known {
@@ -162,6 +164,8 @@ func (s *Server) proppatch(w http.ResponseWriter, r *http.Request, u store.User,
 		var err error
 		if newDefault != nil {
 			err = s.Store.SetDefaultCalendar(u.ID, *newDefault)
+		} else if c.Access != "" {
+			err = s.Store.UpdateShareProps(c.ShareID, updated.DisplayName, updated.Color, updated.SortOrder, updated.Transparent)
 		} else if c.Special == "" {
 			err = s.Store.UpdateCollection(updated)
 		}
@@ -235,6 +239,10 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		http.Error(w, "the scheduling inbox is filled by the server", http.StatusForbidden)
 		return
 	}
+	if c.Access == store.AccessRead {
+		writeError(w, http.StatusForbidden, "<D:need-privileges/>")
+		return
+	}
 	isCal := c.Kind == store.KindCalendar
 	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]))
 	if ct != "" {
@@ -275,7 +283,7 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		Component: p.Component, FirstOcc: p.First, LastOcc: p.Last,
 	}
 	var oldData []byte
-	if isCal {
+	if isCal && c.Access == "" { // implicit scheduling acts for the owner only
 		if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
 			oldData = prev.Data
 		}
@@ -298,7 +306,7 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		s.fail(w, r, err)
 		return
 	}
-	if isCal {
+	if isCal && c.Access == "" {
 		// Implicit scheduling. It may rewrite the stored copy to record
 		// delivery status; then the ETag we would report is stale, so omit it.
 		if rewritten := s.sched().ProcessPut(u, oldData, data); rewritten != nil {
@@ -325,7 +333,7 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 
 // collectionForWrite is lookupCollection with 409 for a missing parent.
 func (s *Server) collectionForWrite(w http.ResponseWriter, r *http.Request, u store.User, t target) (store.Collection, bool) {
-	c, err := s.Store.GetCollection(u.ID, t.kind(), t.slug)
+	c, err := s.Store.ResolveCollection(u.ID, t.kind(), t.slug)
 	if errors.Is(err, store.ErrNotFound) {
 		http.Error(w, "collection does not exist", http.StatusConflict)
 		return c, false
@@ -348,6 +356,14 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 			http.Error(w, "the scheduling inbox cannot be deleted", http.StatusForbidden)
 			return
 		}
+		if c.Access != "" { // deleting a shared collection leaves the share
+			if err := s.Store.DeleteShare(c.ID, u.ID); err != nil {
+				s.fail(w, r, err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if err := s.Store.DeleteCollection(c.ID); err != nil {
 			s.fail(w, r, err)
 			return
@@ -357,12 +373,16 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 		if !ok {
 			return
 		}
+		if c.Access == store.AccessRead {
+			writeError(w, http.StatusForbidden, "<D:need-privileges/>")
+			return
+		}
 		var m func(string) bool
 		if h := r.Header.Get("If-Match"); h != "" {
 			m = etagMatcher(h)
 		}
 		var oldData []byte
-		if c.Kind == store.KindCalendar && c.Special == "" {
+		if c.Kind == store.KindCalendar && c.Special == "" && c.Access == "" {
 			if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
 				oldData = prev.Data
 			}
@@ -478,4 +498,100 @@ func (s *Server) outboxPost(w http.ResponseWriter, r *http.Request, u store.User
 	w.Header().Set("Content-Type", `application/xml; charset="utf-8"`)
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, b.String())
+}
+
+// shareeSettable reports whether a sharee may change the property: only the
+// ones that are stored per user.
+func shareeSettable(it propItem) bool {
+	switch it.XMLName {
+	case dav("displayname"), apl("calendar-color"), apl("calendar-order"), cal("schedule-calendar-transp"):
+		return true
+	}
+	return false
+}
+
+// postCollection handles POST on a collection: the CalendarServer sharing
+// protocol (CS:share), by which an owner invites users.
+func (s *Server) postCollection(w http.ResponseWriter, r *http.Request, u store.User, t target) {
+	if t.n != 3 {
+		http.Error(w, "POST is not supported here", http.StatusMethodNotAllowed)
+		return
+	}
+	c, ok := s.lookupCollection(w, r, u, t)
+	if !ok {
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if root, err := rootElement(body); err != nil || root != cs("share") {
+		http.Error(w, "unsupported POST body", http.StatusForbidden)
+		return
+	}
+	if c.Access != "" || c.Special != "" {
+		writeError(w, http.StatusForbidden, "<D:need-privileges/>")
+		return
+	}
+	var req struct {
+		Set []struct {
+			Href string    `xml:"DAV: href"`
+			RW   *struct{} `xml:"http://calendarserver.org/ns/ read-write"`
+		} `xml:"http://calendarserver.org/ns/ set"`
+		Remove []struct {
+			Href string `xml:"DAV: href"`
+		} `xml:"http://calendarserver.org/ns/ remove"`
+	}
+	if err := xml.Unmarshal(body, &req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	// Resolve everything first so a bad entry changes nothing.
+	type change struct {
+		user   store.User
+		access string // "" removes
+	}
+	var changes []change
+	resolve := func(href string) (store.User, bool) {
+		target, ok := s.sched().Lookup(strings.TrimSpace(href))
+		if !ok || target.ID == u.ID {
+			http.Error(w, "unknown or invalid sharee: "+strings.TrimSpace(href), http.StatusBadRequest)
+			return target, false
+		}
+		return target, true
+	}
+	for _, x := range req.Set {
+		target, ok := resolve(x.Href)
+		if !ok {
+			return
+		}
+		access := store.AccessRead
+		if x.RW != nil {
+			access = store.AccessReadWrite
+		}
+		changes = append(changes, change{target, access})
+	}
+	for _, x := range req.Remove {
+		target, ok := resolve(x.Href)
+		if !ok {
+			return
+		}
+		changes = append(changes, change{target, ""})
+	}
+	for _, ch := range changes {
+		var err error
+		if ch.access == "" {
+			if err = s.Store.DeleteShare(c.ID, ch.user.ID); errors.Is(err, store.ErrNotFound) {
+				err = nil
+			}
+		} else {
+			_, err = s.Store.SetShare(c, ch.user.ID, ch.access)
+		}
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
 }

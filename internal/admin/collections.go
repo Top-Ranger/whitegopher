@@ -20,6 +20,8 @@ type collView struct {
 
 type dashboardData struct {
 	Calendars, AddressBooks []collView
+	// Shared collections other users have shared with this user.
+	SharedCalendars, SharedBooks []collView
 }
 
 func (s *Server) views(userID int64, kind string) ([]collView, error) {
@@ -27,6 +29,18 @@ func (s *Server) views(userID int64, kind string) ([]collView, error) {
 	if err != nil {
 		return nil, err
 	}
+	return s.withCounts(cs, kind)
+}
+
+func (s *Server) mountViews(userID int64, kind string) ([]collView, error) {
+	cs, err := s.Store.ListMounts(userID, kind)
+	if err != nil {
+		return nil, err
+	}
+	return s.withCounts(cs, kind)
+}
+
+func (s *Server) withCounts(cs []store.Collection, kind string) ([]collView, error) {
 	out := make([]collView, 0, len(cs))
 	for _, c := range cs {
 		n, err := s.Store.ObjectCount(c.ID)
@@ -38,12 +52,22 @@ func (s *Server) views(userID int64, kind string) ([]collView, error) {
 	return out, nil
 }
 
-func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, sess *session) {
-	var d dashboardData
-	var err error
-	if d.Calendars, err = s.views(sess.User.ID, store.KindCalendar); err == nil {
-		d.AddressBooks, err = s.views(sess.User.ID, store.KindAddressBook)
+func (s *Server) dashboardData(userID int64) (d dashboardData, err error) {
+	if d.Calendars, err = s.views(userID, store.KindCalendar); err != nil {
+		return
 	}
+	if d.AddressBooks, err = s.views(userID, store.KindAddressBook); err != nil {
+		return
+	}
+	if d.SharedCalendars, err = s.mountViews(userID, store.KindCalendar); err != nil {
+		return
+	}
+	d.SharedBooks, err = s.mountViews(userID, store.KindAddressBook)
+	return
+}
+
+func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, sess *session) {
+	d, err := s.dashboardData(sess.User.ID)
 	if err != nil {
 		s.fail(w, err)
 		return
@@ -75,7 +99,7 @@ func (s *Server) slugFor(ownerID int64, kind, wanted, name string) (string, bool
 	}
 	base := slug
 	for i := 2; ; i++ {
-		if _, err := s.Store.GetCollection(ownerID, kind, slug); err != nil {
+		if taken, err := s.Store.SlugTaken(ownerID, kind, slug); err == nil && !taken {
 			return slug, true
 		}
 		if explicit || i > 50 {
@@ -86,9 +110,7 @@ func (s *Server) slugFor(ownerID int64, kind, wanted, name string) (string, bool
 }
 
 func (s *Server) dashboardError(w http.ResponseWriter, r *http.Request, sess *session, msg string) {
-	d := dashboardData{}
-	d.Calendars, _ = s.views(sess.User.ID, store.KindCalendar)
-	d.AddressBooks, _ = s.views(sess.User.ID, store.KindAddressBook)
+	d, _ := s.dashboardData(sess.User.ID)
 	s.render(w, r, "dashboard", http.StatusUnprocessableEntity, page{Title: "Dashboard", Nav: "dashboard", Data: d, Error: msg})
 }
 
@@ -147,7 +169,7 @@ func (s *Server) ownedCollection(w http.ResponseWriter, r *http.Request, sess *s
 		return store.Collection{}, false
 	}
 	c, err := s.Store.GetCollectionByID(id)
-	if err != nil || c.OwnerID != sess.User.ID {
+	if err != nil || c.OwnerID != sess.User.ID || c.Special != "" {
 		if err != nil && !isNotFound(err) {
 			s.fail(w, err)
 		} else {
@@ -160,7 +182,8 @@ func (s *Server) ownedCollection(w http.ResponseWriter, r *http.Request, sess *s
 
 type collectionData struct {
 	collView
-	URL string
+	URL     string
+	Sharees []store.Sharee
 }
 
 func (s *Server) collectionPage(w http.ResponseWriter, r *http.Request, c store.Collection, status int, errMsg string) {
@@ -170,9 +193,11 @@ func (s *Server) collectionPage(w http.ResponseWriter, r *http.Request, c store.
 		area = "addressbooks"
 	}
 	sess, _ := s.currentSession(r)
+	sharees, _ := s.Store.Sharees(c.ID)
 	data := collectionData{
 		collView: collView{Collection: c, Count: n, IsCal: c.Kind == store.KindCalendar},
 		URL:      s.davURL(r) + area + "/" + sess.User.Username + "/" + c.Slug + "/",
+		Sharees:  sharees,
 	}
 	s.render(w, r, "collection", status, page{Title: displayName(c), Nav: "dashboard", Data: data, Error: errMsg})
 }
@@ -228,6 +253,129 @@ func (s *Server) deleteCollection(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 	if err := s.Store.DeleteCollection(c.ID); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/?ok=deleted", http.StatusSeeOther)
+}
+
+// --- sharing ----------------------------------------------------------------
+
+func (s *Server) addShare(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedCollection(w, r, sess)
+	if !ok {
+		return
+	}
+	name := strings.TrimSpace(r.PostFormValue("username"))
+	access := r.PostFormValue("access")
+	if access != store.AccessRead && access != store.AccessReadWrite {
+		http.Error(w, "bad access level", http.StatusBadRequest)
+		return
+	}
+	target, err := s.Store.UserByName(name)
+	switch {
+	case isNotFound(err):
+		s.collectionPage(w, r, c, http.StatusUnprocessableEntity, "No such user.")
+		return
+	case err != nil:
+		s.fail(w, err)
+		return
+	case target.ID == sess.User.ID:
+		s.collectionPage(w, r, c, http.StatusUnprocessableEntity, "You already own this collection.")
+		return
+	}
+	if _, err := s.Store.SetShare(c, target.ID, access); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/collections/"+strconv.FormatInt(c.ID, 10)+"?ok=saved", http.StatusSeeOther)
+}
+
+func (s *Server) removeShare(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedCollection(w, r, sess)
+	if !ok {
+		return
+	}
+	uid, err := strconv.ParseInt(r.PathValue("uid"), 10, 64)
+	if err != nil {
+		notFound(w)
+		return
+	}
+	if err := s.Store.DeleteShare(c.ID, uid); err != nil && !isNotFound(err) {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/collections/"+strconv.FormatInt(c.ID, 10)+"?ok=saved", http.StatusSeeOther)
+}
+
+// ownedMount loads the share mount {id} if it belongs to the session user.
+func (s *Server) ownedMount(w http.ResponseWriter, r *http.Request, sess *session) (store.Collection, bool) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		notFound(w)
+		return store.Collection{}, false
+	}
+	c, err := s.Store.MountByID(sess.User.ID, id)
+	if err != nil {
+		if isNotFound(err) {
+			notFound(w)
+		} else {
+			s.fail(w, err)
+		}
+		return c, false
+	}
+	return c, true
+}
+
+func (s *Server) mountPage(w http.ResponseWriter, r *http.Request, c store.Collection, status int, errMsg string) {
+	n, _ := s.Store.ObjectCount(c.ID)
+	s.render(w, r, "shared", status, page{Title: displayName(c), Nav: "dashboard", Error: errMsg,
+		Data: collView{Collection: c, Count: n, IsCal: c.Kind == store.KindCalendar}})
+}
+
+func (s *Server) mountForm(w http.ResponseWriter, r *http.Request, sess *session) {
+	if c, ok := s.ownedMount(w, r, sess); ok {
+		s.mountPage(w, r, c, http.StatusOK, "")
+	}
+}
+
+func (s *Server) updateMount(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedMount(w, r, sess)
+	if !ok {
+		return
+	}
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	color := strings.TrimSpace(r.PostFormValue("color"))
+	order := 0
+	if c.Kind == store.KindCalendar {
+		if color != "" && !colorRE.MatchString(color) {
+			s.mountPage(w, r, c, http.StatusUnprocessableEntity, "Colour must look like #RRGGBB.")
+			return
+		}
+		if v := strings.TrimSpace(r.PostFormValue("order")); v != "" {
+			var err error
+			if order, err = strconv.Atoi(v); err != nil {
+				s.mountPage(w, r, c, http.StatusUnprocessableEntity, "Order must be a number.")
+				return
+			}
+		}
+	} else {
+		color = ""
+	}
+	// Clearing the name falls back to the owner's.
+	if err := s.Store.UpdateShareProps(c.ShareID, name, color, order, false); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/shared/"+strconv.FormatInt(c.ShareID, 10)+"?ok=saved", http.StatusSeeOther)
+}
+
+func (s *Server) leaveMount(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedMount(w, r, sess)
+	if !ok {
+		return
+	}
+	if err := s.Store.DeleteShare(c.ID, sess.User.ID); err != nil && !isNotFound(err) {
 		s.fail(w, err)
 		return
 	}

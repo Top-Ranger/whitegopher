@@ -14,11 +14,33 @@ DELETE), objects (PUT/GET/DELETE with ETags and preconditions, validation,
 UID-conflict detection), REPORTs (`calendar-multiget`, `calendar-query` with
 time-range/prop/text filters and recurrence expansion, `addressbook-multiget`,
 `addressbook-query`, `sync-collection`, `free-busy-query`), scheduling
-(below), an admin web UI at `/admin/` and a one-time Baikal importer.
+(below), sharing (below), an admin web UI at `/admin/` and a one-time Baikal importer.
 
-Not yet: sharing, `Schedule-Tag`/`If-Schedule-Tag-Match`, partial
+Not yet: `Schedule-Tag`/`If-Schedule-Tag-Match`, partial
 `calendar-data` retrieval/`expand`, inbound iMIP (replies by email), quotas,
 configurable request limits.
+
+## Sharing
+
+A calendar or address book can be shared with other local users, read-only or
+read-write. Shares are accepted automatically: the collection shows up in the
+sharee's home set (`/dav/calendars/<sharee>/<name>/`, renamed to
+`<owner>-<name>` if the name is taken) and syncs like any other. Each sharee
+keeps their own name, colour and order for it; everything else is the owner's.
+A sharee can leave by deleting the collection; deleting it as the owner
+removes it for everyone. `current-user-privilege-set` reflects the access
+level, so clients such as DAVx5 treat read-only shares as read-only.
+
+Manage shares in the admin UI (collection page → Sharing; "Shared with you"
+on the dashboard) or from Apple clients through the CalendarServer sharing
+protocol (`CS:share` POST, `CS:invite`, `CS:allowed-sharing-modes`).
+
+Limits: the CalendarServer protocol is implemented without invitation
+notifications (shares are accepted at once), and is untested with real Apple
+clients; `DAV:share-resource`, public sharing and per-object ACLs are not
+implemented. Edits made through a read-write share are plain writes: no
+scheduling messages are sent on the owner's behalf, and shared calendars do
+not count towards the sharee's free-busy.
 
 ## Scheduling and free-busy
 
@@ -127,9 +149,8 @@ clients do one full resync.
 
 ## Roadmap
 
-1. Sharing
-2. `Schedule-Tag`, partial retrieval/`expand`, inbound iMIP
-3. Hardening and docs
+1. `Schedule-Tag`, partial retrieval/`expand`, inbound iMIP
+2. Hardening and docs
 
 ## Dependencies and licences
 

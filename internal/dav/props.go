@@ -79,6 +79,17 @@ func addressSet(addrs []string) string {
 	return b.String()
 }
 
+// privReadOnly is the privilege set of a collection shared read-only.
+const privReadOnly = "<D:privilege><D:read/></D:privilege><D:privilege><D:read-current-user-privilege-set/></D:privilege>"
+
+// privFor returns the current-user privileges on c.
+func privFor(c store.Collection) string {
+	if c.Access == store.AccessRead {
+		return privReadOnly
+	}
+	return privAll
+}
+
 const (
 	privInbox  = privAll + "<D:privilege><C:schedule-deliver/></D:privilege><D:privilege><C:schedule-deliver-invite/></D:privilege><D:privilege><C:schedule-deliver-reply/></D:privilege><D:privilege><C:schedule-query-freebusy/></D:privilege>"
 	privOutbox = privAll + "<D:privilege><C:schedule-send/></D:privilege><D:privilege><C:schedule-send-invite/></D:privilege><D:privilege><C:schedule-send-reply/></D:privilege><D:privilege><C:schedule-send-freebusy/></D:privilege>"
@@ -114,11 +125,15 @@ func (s *Server) collectionRes(u store.User, c store.Collection, seq int64) reso
 	if name == "" {
 		name = c.Slug
 	}
+	owner := u.Username
+	if c.OwnerName != "" {
+		owner = c.OwnerName
+	}
 	p := map[xml.Name]string{
 		dav("displayname"):                esc(name),
-		dav("owner"):                      hrefXML(s.principalHref(u.Username)),
+		dav("owner"):                      hrefXML(s.principalHref(owner)),
 		dav("current-user-principal"):     hrefXML(s.principalHref(u.Username)),
-		dav("current-user-privilege-set"): privAll,
+		dav("current-user-privilege-set"): privFor(c),
 		dav("sync-token"):                 syncToken(seq),
 		cs("getctag"):                     syncToken(seq),
 	}
@@ -158,7 +173,49 @@ func (s *Server) collectionRes(u store.User, c store.Collection, seq int64) reso
 		p[card("supported-address-data")] = `<A:address-data-type content-type="text/vcard" version="3.0"/>` +
 			`<A:address-data-type content-type="text/vcard" version="4.0"/>`
 	}
+	s.sharingProps(u, c, p)
 	return resource{href: s.collHref(areaOf(c.Kind), u.Username, c.Slug), props: p}
+}
+
+// sharingProps adds the CalendarServer-style sharing properties: whether the
+// collection can be shared, who it is shared with (to its owner), and the
+// shared markers in its resourcetype.
+func (s *Server) sharingProps(u store.User, c store.Collection, p map[xml.Name]string) {
+	if c.Special != "" {
+		return
+	}
+	if c.Access != "" { // a sharee's view
+		p[dav("resourcetype")] += "<S:shared/>"
+		return
+	}
+	p[cs("allowed-sharing-modes")] = "<S:can-be-shared/>"
+	sharees, err := s.Store.Sharees(c.ID)
+	if err != nil || len(sharees) == 0 {
+		return
+	}
+	p[dav("resourcetype")] += "<S:shared-owner/>"
+	name := u.DisplayName
+	if name == "" {
+		name = u.Username
+	}
+	var b strings.Builder
+	b.WriteString("<S:organizer><D:href>" + esc(s.principalHref(u.Username)) + "</D:href><S:common-name>" + esc(name) + "</S:common-name></S:organizer>")
+	for _, sh := range sharees {
+		addr := s.principalHref(sh.Username)
+		if sh.Email != "" {
+			addr = "mailto:" + sh.Email
+		}
+		cn := sh.UserDisplay
+		if cn == "" {
+			cn = sh.Username
+		}
+		access := "<S:read/>"
+		if sh.Access == store.AccessReadWrite {
+			access = "<S:read-write/>"
+		}
+		b.WriteString("<S:user><D:href>" + esc(addr) + "</D:href><S:common-name>" + esc(cn) + "</S:common-name><S:invite-accepted/><S:access>" + access + "</S:access></S:user>")
+	}
+	p[cs("invite")] = b.String()
 }
 
 func contentType(c store.Collection, o store.Object) string {
@@ -169,13 +226,17 @@ func contentType(c store.Collection, o store.Object) string {
 }
 
 func (s *Server) objectRes(u store.User, c store.Collection, o store.Object) resource {
+	owner := u.Username
+	if c.OwnerName != "" {
+		owner = c.OwnerName
+	}
 	return resource{href: s.collHref(areaOf(c.Kind), u.Username, c.Slug) + o.URI, props: map[xml.Name]string{
 		dav("resourcetype"):               "",
 		dav("getetag"):                    `"` + o.ETag + `"`,
 		dav("getcontenttype"):             esc(contentType(c, o)),
 		dav("getcontentlength"):           strconv.FormatInt(o.Size, 10),
-		dav("owner"):                      hrefXML(s.principalHref(u.Username)),
-		dav("current-user-privilege-set"): privAll,
+		dav("owner"):                      hrefXML(s.principalHref(owner)),
+		dav("current-user-privilege-set"): privFor(c),
 	}}
 }
 

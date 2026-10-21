@@ -182,3 +182,94 @@ func TestBadDSN(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestShares(t *testing.T) {
+	st := storetest.New(t)
+	aid, _ := st.CreateUser(store.User{Username: "alice"})
+	bid, _ := st.CreateUser(store.User{Username: "bob"})
+	cal := store.Collection{OwnerID: aid, Kind: store.KindCalendar, Slug: "work", DisplayName: "Work", Color: "#111111"}
+	cal.ID, _ = st.CreateCollection(cal)
+	book := store.Collection{OwnerID: aid, Kind: store.KindAddressBook, Slug: "people"}
+	book.ID, _ = st.CreateCollection(book)
+	// Bob already owns a calendar called "work": the mount must get another name.
+	st.CreateCollection(store.Collection{OwnerID: bid, Kind: store.KindCalendar, Slug: "work"})
+
+	sh, err := st.SetShare(cal, bid, store.AccessRead)
+	if err != nil || sh.Slug != "alice-work" || sh.Access != store.AccessRead {
+		t.Fatalf("share: %+v %v", sh, err)
+	}
+	if sh2, err := st.SetShare(cal, bid, store.AccessReadWrite); err != nil || sh2.ID != sh.ID || sh2.Access != store.AccessReadWrite {
+		t.Fatalf("upgrade: %+v %v", sh2, err)
+	}
+	if _, err := st.SetShare(cal, bid, store.AccessReadWrite); err != nil { // unchanged: still fine
+		t.Fatal(err)
+	}
+	if _, err := st.SetShare(cal, aid, store.AccessRead); err == nil {
+		t.Fatal("shared with owner")
+	}
+	if _, err := st.SetShare(cal, bid, "admin"); err == nil {
+		t.Fatal("bad access accepted")
+	}
+	inbox, _ := st.Inbox(aid)
+	if _, err := st.SetShare(inbox, bid, store.AccessRead); err == nil {
+		t.Fatal("inbox was shareable")
+	}
+
+	// Resolution: bob's own "work" wins by name; the mount is reachable by its slug.
+	own, err := st.ResolveCollection(bid, store.KindCalendar, "work")
+	if err != nil || own.Access != "" || own.OwnerID != bid {
+		t.Fatalf("own: %+v %v", own, err)
+	}
+	m, err := st.ResolveCollection(bid, store.KindCalendar, "alice-work")
+	if err != nil || m.ID != cal.ID || m.Access != store.AccessReadWrite || m.OwnerName != "alice" || m.DisplayName != "Work" || m.Color != "#111111" {
+		t.Fatalf("mount: %+v %v", m, err)
+	}
+	if _, err := st.ResolveCollection(bid, store.KindAddressBook, "alice-work"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("wrong kind resolved: %v", err)
+	}
+	// The sharee's presentation overrides apply to the view only.
+	if err := st.UpdateShareProps(sh.ID, "Alice's work", "#222222", 5, false); err != nil {
+		t.Fatal(err)
+	}
+	m, _ = st.ResolveCollection(bid, store.KindCalendar, "alice-work")
+	if m.DisplayName != "Alice's work" || m.Color != "#222222" || m.SortOrder != 5 {
+		t.Fatalf("overrides: %+v", m)
+	}
+	if orig, _ := st.GetCollectionByID(cal.ID); orig.DisplayName != "Work" || orig.Color != "#111111" {
+		t.Fatalf("owner's collection changed: %+v", orig)
+	}
+	// Names taken by mounts block new collections, reserved ones too.
+	for _, slug := range []string{"alice-work", "work", "inbox", "outbox"} {
+		if taken, _ := st.SlugTaken(bid, store.KindCalendar, slug); !taken {
+			t.Errorf("%q should be taken", slug)
+		}
+	}
+	if taken, _ := st.SlugTaken(bid, store.KindAddressBook, "work"); taken {
+		t.Error("kinds have separate namespaces")
+	}
+
+	st.SetShare(book, bid, store.AccessRead)
+	if mounts, _ := st.ListMounts(bid, store.KindCalendar); len(mounts) != 1 {
+		t.Fatalf("calendar mounts: %+v", mounts)
+	}
+	if sharees, _ := st.Sharees(cal.ID); len(sharees) != 1 || sharees[0].Username != "bob" {
+		t.Fatalf("sharees: %+v", sharees)
+	}
+
+	// Leaving, owner deletion and user deletion all clean up.
+	if err := st.DeleteShare(cal.ID, bid); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.DeleteShare(cal.ID, bid); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("second leave: %v", err)
+	}
+	st.SetShare(cal, bid, store.AccessRead)
+	st.DeleteCollection(cal.ID)
+	if mounts, _ := st.ListMounts(bid, store.KindCalendar); len(mounts) != 0 {
+		t.Fatal("mount survived the owner deleting the collection")
+	}
+	st.DeleteUser(bid)
+	if sharees, _ := st.Sharees(book.ID); len(sharees) != 0 {
+		t.Fatal("share survived the sharee's deletion")
+	}
+}

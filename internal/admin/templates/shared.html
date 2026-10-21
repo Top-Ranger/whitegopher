@@ -1,0 +1,29 @@
+{{define "content"}}
+{{with .Data}}
+<h1>Shared {{if .IsCal}}calendar{{else}}address book{{end}}: {{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</h1>
+<section>
+  <p>Owned by <strong>{{.OwnerName}}</strong> · you have {{if eq .Access "readwrite"}}edit{{else}}read-only{{end}} access · {{.Count}} {{if .IsCal}}events/tasks{{else}}contacts{{end}}</p>
+  <p class="muted">These settings are yours alone; the owner's name and colour are not changed.</p>
+</section>
+<section>
+  <h2>Your settings</h2>
+  <form method="post" action="/admin/shared/{{.ShareID}}" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Name <input type="text" name="name" value="{{.DisplayName}}"></label>
+    {{if .IsCal}}
+    <label>Colour <input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></label>
+    <label>Sort order <input type="number" name="order" value="{{.SortOrder}}"></label>
+    {{end}}
+    <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/">Back</a></div>
+  </form>
+</section>
+<section>
+  <h2>Leave</h2>
+  <p>Stops sharing with you. The owner's data is untouched.</p>
+  <form method="post" action="/admin/shared/{{.ShareID}}/leave">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <button class="danger" type="submit">Leave</button>
+  </form>
+</section>
+{{end}}
+{{end}}
