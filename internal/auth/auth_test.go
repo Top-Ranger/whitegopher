@@ -9,15 +9,12 @@ import (
 
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/galdav/internal/storetest"
 )
 
 func setup(t *testing.T) *httptest.Server {
 	t.Helper()
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := storetest.New(t)
 	st.CreateUser(store.User{Username: "alice", DigestHA1: auth.HA1("alice", "R", "secret")})
 	a := &auth.Authenticator{Store: st, Realm: "R"}
 	ts := httptest.NewServer(a.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

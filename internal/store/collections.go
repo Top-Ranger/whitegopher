@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"errors"
-	"strings"
 )
 
 const (
@@ -26,10 +25,6 @@ type Collection struct {
 	Timezone    string // VTIMEZONE text, calendars only
 }
 
-func isUnique(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
-}
-
 const collCols = `id, owner_id, kind, slug, display_name, description, color, sort_order, components, timezone`
 
 func scanCollection(sc interface{ Scan(...any) error }) (Collection, error) {
@@ -48,7 +43,7 @@ func (s *Store) CreateCollection(c Collection) (int64, error) {
 		`INSERT INTO collections (owner_id, kind, slug, display_name, description, color, sort_order, components, timezone)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.OwnerID, c.Kind, c.Slug, c.DisplayName, c.Description, c.Color, c.SortOrder, c.Components, c.Timezone)
-	if isUnique(err) {
+	if s.d.isUnique(err) {
 		return 0, ErrExists
 	}
 	if err != nil {

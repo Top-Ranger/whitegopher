@@ -17,7 +17,7 @@ time-range/prop/text filters and recurrence expansion, `addressbook-multiget`,
 
 Admin web UI at `/admin/` (see below).
 
-Not yet: MySQL/Postgres, free-busy, scheduling (iTIP), sharing,
+Not yet: Postgres, free-busy, scheduling (iTIP), sharing,
 partial `calendar-data` retrieval/`expand`, config for limits.
 
 ## Run
@@ -33,6 +33,25 @@ on a public host create the admin from the command line before exposing it:
 Config is read from `config.yaml` (see `internal/config`), defaults otherwise.
 Digest auth needs the realm to stay stable: it is part of the stored hash.
 
+## Database
+
+SQLite is the default and needs nothing. For MySQL or MariaDB create an empty
+database (utf8mb4) and configure:
+
+    db:
+      driver: mysql
+      dsn: "galdav:secret@tcp(127.0.0.1:3306)/galdav"
+
+`GALDAV_DB_DSN` overrides `db.dsn`, to keep the password out of the file.
+Tables are created and migrated on start. Both drivers are pure Go, so
+`CGO_ENABLED=0 go build ./cmd/galdav` yields a static binary.
+
+The SQLite and MySQL stores share one test suite. To run all tests against a
+MySQL/MariaDB server (it needs rights to create and drop `galdav_test_*`
+databases):
+
+    GALDAV_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
+
 ## Admin UI
 
 Served under `/admin/` (disable with `admin: {enabled: false}`). Users manage
@@ -47,10 +66,13 @@ if needed). Changing a password ends that user's sessions.
 
     galdav import-baikal -dry-run /path/to/baikal/Specific/db/db.sqlite
     galdav import-baikal /path/to/baikal/Specific/db/db.sqlite
+    galdav import-baikal -mysql 'user:pass@tcp(127.0.0.1:3306)/baikal'   # Baikal on MySQL/MariaDB
+
+The destination is whatever `config.yaml` selects.
 
 Set `realm` in `config.yaml` to Baikal's realm (default `BaikalDAV`) first so
 imported password hashes keep working. Sync tokens are not carried over;
-clients do one full resync. Only SQLite sources are supported so far.
+clients do one full resync.
 
 ## Layout
 
@@ -65,6 +87,12 @@ clients do one full resync. Only SQLite sources are supported so far.
 
 ## Roadmap
 
-1. MySQL/Postgres sources for the importer, Postgres as a store
-2. Free-busy, scheduling, sharing
-3. Hardening, Docker, docs
+1. Free-busy, scheduling, sharing
+2. Hardening and docs
+3. Postgres, if wanted
+
+## Dependencies and licences
+
+galdav is MIT. Direct dependencies are MIT/BSD/Apache-2.0 licensed except
+`github.com/go-sql-driver/mysql`, which is MPL-2.0 (file-level copyleft: it
+only affects modifications to that library's own files, not galdav).

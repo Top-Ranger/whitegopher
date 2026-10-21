@@ -6,15 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/importer"
 	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/galdav/internal/storetest"
 )
 
-// Minimal tables with the column names of a Baikal database.
-const fixtureSchema = `
+// Minimal tables with the column names of a Baikal SQLite database.
+const sqliteSchema = `
 CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, digesta1 TEXT);
 CREATE TABLE principals (id INTEGER PRIMARY KEY, uri TEXT, email TEXT, displayname TEXT);
 CREATE TABLE calendars (id INTEGER PRIMARY KEY, synctoken INTEGER, components TEXT);
@@ -32,15 +34,52 @@ const (
 	vc = "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:c1\r\nFN:Bob\r\nN:;Bob;;;\r\nEND:VCARD\r\n"
 )
 
-func fixture(t *testing.T) *sql.DB {
+// mysqlSchema mimics Baikal's MySQL layout, including its VARBINARY columns.
+var mysqlSchema = []string{
+	`CREATE TABLE users (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, username VARBINARY(50), digesta1 VARBINARY(32))`,
+	`CREATE TABLE principals (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, uri VARBINARY(200), email VARBINARY(80), displayname VARCHAR(80))`,
+	`CREATE TABLE calendars (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, synctoken INTEGER UNSIGNED NOT NULL DEFAULT 1, components VARBINARY(21))`,
+	`CREATE TABLE calendarinstances (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, calendarid INTEGER UNSIGNED NOT NULL, principaluri VARBINARY(100),
+	   access TINYINT(1) NOT NULL DEFAULT 1, displayname VARCHAR(100), uri VARBINARY(200), description TEXT, calendarorder INT UNSIGNED NOT NULL DEFAULT 0,
+	   calendarcolor VARBINARY(10), timezone TEXT)`,
+	`CREATE TABLE calendarobjects (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, calendardata MEDIUMBLOB, uri VARBINARY(200), calendarid INTEGER UNSIGNED NOT NULL,
+	   lastmodified INT UNSIGNED, etag VARBINARY(32), size INT UNSIGNED NOT NULL DEFAULT 0, componenttype VARBINARY(8), firstoccurence BIGINT UNSIGNED, lastoccurence BIGINT UNSIGNED, uid VARBINARY(200))`,
+	`CREATE TABLE addressbooks (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, principaluri VARBINARY(255), displayname VARCHAR(255), uri VARBINARY(200), description TEXT, synctoken INTEGER UNSIGNED NOT NULL DEFAULT 1)`,
+	`CREATE TABLE cards (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, addressbookid INTEGER UNSIGNED NOT NULL, carddata MEDIUMBLOB, uri VARBINARY(200),
+	   lastmodified INT UNSIGNED, etag VARBINARY(32), size INT UNSIGNED NOT NULL DEFAULT 0)`,
+}
+
+func sqliteFixture(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "baikal.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
+	if _, err := db.Exec(sqliteSchema); err != nil {
+		t.Fatal(err)
+	}
+	return populate(t, db)
+}
+
+func mysqlFixture(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("mysql", storetest.MySQLDSN(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	for _, ddl := range mysqlSchema {
+		if _, err := db.Exec(ddl); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return populate(t, db)
+}
+
+func populate(t *testing.T, db *sql.DB) *sql.DB {
+	t.Helper()
 	stmts := []string{
-		fixtureSchema,
 		`INSERT INTO users (username, digesta1) VALUES ('alice', '` + auth.HA1("alice", "BaikalDAV", "secret") + `')`,
 		`INSERT INTO principals (uri, email, displayname) VALUES ('principals/alice', 'a@example.com', 'Alice A')`,
 		`INSERT INTO calendars (id, components) VALUES (1, 'VEVENT'), (2, 'VEVENT,VTODO')`,
@@ -54,19 +93,29 @@ func fixture(t *testing.T) *sql.DB {
 			t.Fatal(err)
 		}
 	}
-	db.Exec(`INSERT INTO calendarobjects (calendardata, uri, calendarid, etag, componenttype, uid) VALUES (?, 'e1.ics', 1, 'abc123', 'VEVENT', 'e1')`, []byte(ev))
-	db.Exec(`INSERT INTO calendarobjects (calendardata, uri, calendarid, etag, componenttype, uid) VALUES (?, 'broken.ics', 1, '"q"', 'VEVENT', 'x')`, []byte("not ical"))
-	db.Exec(`INSERT INTO cards (addressbookid, carddata, uri, etag) VALUES (1, ?, 'c1.vcf', 'def456')`, []byte(vc))
+	objects := []struct {
+		q    string
+		data string
+	}{
+		{`INSERT INTO calendarobjects (calendardata, uri, calendarid, etag, componenttype, uid) VALUES (?, 'e1.ics', 1, 'abc123', 'VEVENT', 'e1')`, ev},
+		{`INSERT INTO calendarobjects (calendardata, uri, calendarid, etag, componenttype, uid) VALUES (?, 'broken.ics', 1, '"q"', 'VEVENT', 'x')`, "not ical"},
+		{`INSERT INTO cards (addressbookid, carddata, uri, etag) VALUES (1, ?, 'c1.vcf', 'def456')`, vc},
+	}
+	for _, o := range objects {
+		if _, err := db.Exec(o.q, []byte(o.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return db
 }
 
-func TestImportBaikal(t *testing.T) {
-	src := fixture(t)
-	dst, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer dst.Close()
+func TestImportBaikalSQLite(t *testing.T) { testImport(t, sqliteFixture(t)) }
+
+// Runs only when GALDAV_TEST_MYSQL_DSN is set.
+func TestImportBaikalMySQL(t *testing.T) { testImport(t, mysqlFixture(t)) }
+
+func testImport(t *testing.T, src *sql.DB) {
+	dst := storetest.New(t)
 
 	dry, err := importer.ImportBaikal(src, dst, importer.Options{DryRun: true})
 	if err != nil || dry.Users != 1 || dry.Events != 2 || dry.Cards != 1 {

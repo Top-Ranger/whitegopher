@@ -15,6 +15,7 @@ import (
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/dav"
 	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/galdav/internal/storetest"
 )
 
 type env struct {
@@ -26,11 +27,7 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := storetest.New(t)
 	a := &auth.Authenticator{Store: st, Realm: "R"}
 	ui, err := (&admin.Server{Store: st, Auth: a, DAVPath: "/dav"}).Handler()
 	if err != nil {

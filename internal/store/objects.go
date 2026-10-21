@@ -48,8 +48,16 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 	}
 	defer tx.Rollback()
 
+	// Serialise writers per collection so the UID check and the insert are
+	// atomic on databases with concurrent writers.
+	if s.d.forUpdate != "" {
+		var id int64
+		if err := tx.QueryRow(`SELECT id FROM collections WHERE id = ?`+s.d.forUpdate, o.CollectionID).Scan(&id); err != nil {
+			return false, err
+		}
+	}
 	var oldETag string
-	err = tx.QueryRow(`SELECT etag FROM objects WHERE collection_id = ? AND uri = ?`, o.CollectionID, o.URI).Scan(&oldETag)
+	err = tx.QueryRow(`SELECT etag FROM objects WHERE collection_id = ? AND uri = ?`+s.d.forUpdate, o.CollectionID, o.URI).Scan(&oldETag)
 	exists := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, err
@@ -73,12 +81,7 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 		}
 	}
 
-	_, err = tx.Exec(
-		`INSERT INTO objects (collection_id, uri, uid, etag, data, component, first_occ, last_occ)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT (collection_id, uri) DO UPDATE SET
-		   uid = excluded.uid, etag = excluded.etag, data = excluded.data, component = excluded.component,
-		   first_occ = excluded.first_occ, last_occ = excluded.last_occ, updated_at = CURRENT_TIMESTAMP`,
+	_, err = tx.Exec(s.d.upsertObject,
 		o.CollectionID, o.URI, o.UID, o.ETag, o.Data, o.Component, o.FirstOcc, o.LastOcc)
 	if err != nil {
 		return false, fmt.Errorf("put object: %w", err)
@@ -136,7 +139,7 @@ func (s *Store) DeleteObject(collectionID int64, uri string, ifMatch func(etag s
 	}
 	defer tx.Rollback()
 	var etag string
-	err = tx.QueryRow(`SELECT etag FROM objects WHERE collection_id = ? AND uri = ?`, collectionID, uri).Scan(&etag)
+	err = tx.QueryRow(`SELECT etag FROM objects WHERE collection_id = ? AND uri = ?`+s.d.forUpdate, collectionID, uri).Scan(&etag)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}

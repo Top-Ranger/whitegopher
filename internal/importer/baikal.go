@@ -1,5 +1,5 @@
-// Package importer copies data out of a Baikal (sabre/dav schema) SQLite
-// database into a galdav store. It reads the database as plain data and
+// Package importer copies data out of a Baikal (sabre/dav schema) SQLite or
+// MySQL database into a galdav store. It reads the database as plain data and
 // shares no code with Baikal or sabre/dav.
 package importer
 
@@ -40,7 +40,7 @@ type importer struct {
 }
 
 // ImportBaikal imports users, calendars, address books and their objects
-// from the SQLite database src. It is idempotent: existing users and
+// from the Baikal database src (SQLite or MySQL). It is idempotent: existing users and
 // collections are reused and objects are overwritten by URI.
 func ImportBaikal(src *sql.DB, dst *store.Store, opt Options) (Result, error) {
 	im := &importer{src: src, dst: dst, opt: opt, users: map[string]int64{}}
@@ -56,10 +56,15 @@ func ImportBaikal(src *sql.DB, dst *store.Store, opt Options) (Result, error) {
 	return im.res, nil
 }
 
+// hasTable probes for a table in a database-neutral way. Table names are
+// fixed identifiers from this package, never user input.
 func (im *importer) hasTable(name string) bool {
-	var n int
-	im.src.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&n)
-	return n > 0
+	rows, err := im.src.Query(`SELECT 1 FROM ` + name + ` WHERE 1 = 0`)
+	if err != nil {
+		return false
+	}
+	rows.Close()
+	return true
 }
 
 func (im *importer) importUsers() error {
