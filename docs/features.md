@@ -63,7 +63,9 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/p
   description, colour, order and allowed component types.
 - Objects: `PUT` with `If-Match` / `If-None-Match`, ETags, validation
   (iCalendar 2.0, vCard 2.1/3.0/4.0, one UID per object, allowed component
-  types) and UID-conflict detection (`no-uid-conflict`).
+  types) and UID-conflict detection (`no-uid-conflict`). `If-Match` is
+  compared strongly and checked atomically with the write (`412` on mismatch);
+  `If-None-Match` on the public feed uses weak comparison.
 - Reports: `calendar-multiget`, `calendar-query` (component, property,
   parameter and text-match filters; time-range with recurrence expansion),
   `addressbook-multiget`, `addressbook-query` (`anyof`/`allof`, `contains`,
@@ -134,6 +136,13 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
 
 Limits: the `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.
+
+Known race: on `PUT`, the previous copy used to decide whether a change is
+scheduling-significant (and so whether the Schedule-Tag changes) is read before
+the write takes its lock. If another write to the same object lands in between
+and the `PUT` carries no `If-Match`, that decision can be based on stale data
+(a missed or extra re-invite, or a Schedule-Tag kept or reset wrongly). Clients
+that send `If-Match` are not affected.
 
 ## Free-busy
 

@@ -31,6 +31,20 @@ func etagMatcher(header string) func(string) bool {
 	}
 }
 
+// weakETagMatcher implements If-None-Match list semantics (weak comparison):
+// a W/ prefix on either side is ignored.
+func weakETagMatcher(header string) func(string) bool {
+	return func(etag string) bool {
+		for _, v := range strings.Split(header, ",") {
+			v = strings.TrimPrefix(strings.TrimSpace(v), "W/")
+			if v == "*" || v == `"`+etag+`"` {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 func (s *Server) mkcol(w http.ResponseWriter, r *http.Request, u store.User, t target) {
 	kind := t.kind()
 	if t.n != 3 || kind == "" {

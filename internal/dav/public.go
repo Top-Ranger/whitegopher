@@ -61,7 +61,7 @@ func (s *Server) servePublic(w http.ResponseWriter, r *http.Request) {
 	h.Set("Cache-Control", "no-cache")
 	h.Set("X-Robots-Tag", "noindex")
 	h.Set("Referrer-Policy", "no-referrer")
-	if etagMatcher(r.Header.Get("If-None-Match"))(strings.Trim(etag, `"`)) {
+	if weakETagMatcher(r.Header.Get("If-None-Match"))(strings.Trim(etag, `"`)) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}

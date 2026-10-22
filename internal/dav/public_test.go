@@ -57,6 +57,13 @@ func TestPublicLinks(t *testing.T) {
 	etag := h["Etag"][0]
 	st, _, _ = get("/public/"+tok+".ics", "If-None-Match", etag)
 	expect(t, st, 304, "")
+	// If-None-Match uses weak comparison, so W/ validators and lists match too.
+	st, _, _ = get("/public/"+tok+".ics", "If-None-Match", "W/"+etag)
+	expect(t, st, 304, "")
+	st, _, _ = get("/public/"+tok+".ics", "If-None-Match", `"other", W/`+etag)
+	expect(t, st, 304, "")
+	st, feed, _ = get("/public/"+tok+".ics", "If-None-Match", `W/"other"`)
+	expect(t, st, 200, feed)
 	a.req("PUT", "/dav/calendars/alice/main/three.ics", tzEvent("three"))
 	st, feed, _ = get("/public/"+tok+".ics", "If-None-Match", etag)
 	expect(t, st, 200, feed)
