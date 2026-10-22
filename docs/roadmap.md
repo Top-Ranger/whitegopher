@@ -36,6 +36,7 @@ sharing especially), and the results decide the order of everything below.
 ## Security and operations
 
 - Rate limiting for DAV Basic logins (the admin UI already has it).
+- Logging of failed logins with IP, accounting for reverse proxy.
 - Per-user quotas and a configurable request-size limit.
 - App passwords (per-device credentials) and optional two-factor sign-in for
   the admin UI; password reset by email.
