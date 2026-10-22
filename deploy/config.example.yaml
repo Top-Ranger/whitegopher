@@ -57,6 +57,6 @@ admin:
 # The password goes into WHITEGOPHER_SMTP_PASSWORD.
 # smtp:
 #   host: smtp.example.com
-#   port: 587
+#   port: 587             # 465 uses implicit TLS; otherwise STARTTLS when offered
 #   username: whitegopher
 #   from: "whitegopher <noreply@example.com>"

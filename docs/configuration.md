@@ -59,7 +59,7 @@ login_limit:             # failed logins (DAV and admin UI) per client address
 
 smtp:                    # optional iMIP email for attendees without an account
   host: ""               # empty disables email delivery
-  port: 587              # STARTTLS is used when the server offers it
+  port: 587              # 465 = implicit TLS; otherwise STARTTLS when offered
   username: ""
   password: ""
   from: ""               # required with host, e.g. "whitegopher <noreply@example.com>"

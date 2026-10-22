@@ -3,6 +3,7 @@ package sched
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"mime/quotedprintable"
@@ -26,8 +27,9 @@ type Mailer interface {
 	Send(Message) error
 }
 
-// SMTP sends iMIP messages through an SMTP relay. STARTTLS is used whenever
-// the server offers it; credentials are only sent over TLS or to localhost.
+// SMTP sends iMIP messages through an SMTP relay. Port 465 uses implicit TLS;
+// on other ports STARTTLS is used whenever the server offers it. Credentials
+// are only sent over TLS or to localhost.
 type SMTP struct {
 	Host     string
 	Port     int
@@ -35,6 +37,10 @@ type SMTP struct {
 	Password string
 	// From is the envelope and header sender, e.g. "whitegopher <noreply@example.com>".
 	From string
+
+	// Test hooks: a custom TLS config, and implicit TLS on a port other than 465.
+	tlsConfig   *tls.Config
+	implicitTLS bool
 }
 
 var subjects = map[string]string{"REQUEST": "Invitation", "CANCEL": "Cancelled", "REPLY": "Reply"}
@@ -48,12 +54,67 @@ func (m *SMTP) Send(msg Message) error {
 	if err != nil {
 		return err
 	}
-	addr := net.JoinHostPort(m.Host, fmt.Sprint(m.Port))
-	var auth smtp.Auth
-	if m.Username != "" {
-		auth = smtp.PlainAuth("", m.Username, m.Password, m.Host)
+	return m.deliver(from.Address, []string{msg.To}, body)
+}
+
+// deliver sends one message. net/smtp.SendMail cannot do implicit TLS, so the
+// session is driven by hand, with timeouts so a stuck relay cannot block callers.
+func (m *SMTP) deliver(from string, to []string, body []byte) error {
+	cfg := m.tlsConfig
+	if cfg == nil {
+		cfg = &tls.Config{ServerName: m.Host}
 	}
-	return smtp.SendMail(addr, auth, from.Address, []string{msg.To}, body)
+	implicit := m.Port == 465 || m.implicitTLS
+	addr := net.JoinHostPort(m.Host, fmt.Sprint(m.Port))
+	d := net.Dialer{Timeout: 30 * time.Second}
+	var conn net.Conn
+	var err error
+	if implicit {
+		conn, err = tls.DialWithDialer(&d, "tcp", addr, cfg)
+	} else {
+		conn, err = d.Dial("tcp", addr)
+	}
+	if err != nil {
+		return err
+	}
+	conn.SetDeadline(time.Now().Add(2 * time.Minute))
+	c, err := smtp.NewClient(conn, m.Host)
+	if err != nil {
+		conn.Close()
+		return err
+	}
+	defer c.Close()
+	if !implicit {
+		if ok, _ := c.Extension("STARTTLS"); ok {
+			if err := c.StartTLS(cfg); err != nil {
+				return err
+			}
+		}
+	}
+	if m.Username != "" {
+		if err := c.Auth(smtp.PlainAuth("", m.Username, m.Password, m.Host)); err != nil {
+			return err
+		}
+	}
+	if err := c.Mail(from); err != nil {
+		return err
+	}
+	for _, r := range to {
+		if err := c.Rcpt(r); err != nil {
+			return err
+		}
+	}
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(body); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return c.Quit()
 }
 
 // SendText sends a plain-text message, e.g. a password-reset link.
@@ -84,11 +145,7 @@ func (m *SMTP) SendText(to, subject, text string) error {
 	w := quotedprintable.NewWriter(&b)
 	w.Write([]byte(strings.ReplaceAll(text, "\n", "\r\n")))
 	w.Close()
-	var auth smtp.Auth
-	if m.Username != "" {
-		auth = smtp.PlainAuth("", m.Username, m.Password, m.Host)
-	}
-	return smtp.SendMail(net.JoinHostPort(m.Host, fmt.Sprint(m.Port)), auth, from.Address, []string{rcpt.Address}, b.Bytes())
+	return m.deliver(from.Address, []string{rcpt.Address}, b.Bytes())
 }
 
 func header(v string) string {
