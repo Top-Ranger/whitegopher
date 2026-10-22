@@ -246,10 +246,10 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **A2** | Reset bob's password as administrator. | Same as A1 for bob. |
 | **A3** | Check that the client authenticates with **Basic** over TLS (traffic capture). | Works; no `Digest` challenge is offered. |
 | **A4** | Sign in to the admin UI at the same time as clients are syncing. | Independent; neither disturbs the other. |
+| **A5** | Delete bob's account while his client is syncing. | The client reports authentication failure; no crash, no data touched in alice's account. |
 | **A6** | In the admin UI create an **app password** for the client; sign the client in with it instead of the account password. Then revoke it. | Syncing works with the app password; after revoking, the client asks for credentials again and the account password still works. |
 | **A7** | Turn on **two-factor** for alice (admin UI). Check the clients that still use alice's account password. | They are refused (`401`) until given an app password; the admin UI asks for the code. Turning two-factor off restores account-password logins. |
 | **A8** | Repeat wrong passwords from one client until it is refused. | After `login_limit.failures` failures the server answers `429`; the failures appear in the log with the client's real address (check `proxy.trusted`). |
-| **A5** | Delete bob's account while his client is syncing. | The client reports authentication failure; no crash, no data touched in alice's account. |
 
 ### S. Scheduling details
 
