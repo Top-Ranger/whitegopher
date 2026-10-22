@@ -194,24 +194,24 @@ func TestShares(t *testing.T) {
 	// Bob already owns a calendar called "work": the mount must get another name.
 	st.CreateCollection(store.Collection{OwnerID: bid, Kind: store.KindCalendar, Slug: "work"})
 
-	sh, err := st.SetShare(cal, bid, store.AccessRead)
+	sh, err := st.SetShare(cal, bid, store.AccessRead, false)
 	if err != nil || sh.Slug != "alice-work" || sh.Access != store.AccessRead {
 		t.Fatalf("share: %+v %v", sh, err)
 	}
-	if sh2, err := st.SetShare(cal, bid, store.AccessReadWrite); err != nil || sh2.ID != sh.ID || sh2.Access != store.AccessReadWrite {
+	if sh2, err := st.SetShare(cal, bid, store.AccessReadWrite, false); err != nil || sh2.ID != sh.ID || sh2.Access != store.AccessReadWrite {
 		t.Fatalf("upgrade: %+v %v", sh2, err)
 	}
-	if _, err := st.SetShare(cal, bid, store.AccessReadWrite); err != nil { // unchanged: still fine
+	if _, err := st.SetShare(cal, bid, store.AccessReadWrite, false); err != nil { // unchanged: still fine
 		t.Fatal(err)
 	}
-	if _, err := st.SetShare(cal, aid, store.AccessRead); err == nil {
+	if _, err := st.SetShare(cal, aid, store.AccessRead, false); err == nil {
 		t.Fatal("shared with owner")
 	}
-	if _, err := st.SetShare(cal, bid, "admin"); err == nil {
+	if _, err := st.SetShare(cal, bid, "admin", false); err == nil {
 		t.Fatal("bad access accepted")
 	}
 	inbox, _ := st.Inbox(aid)
-	if _, err := st.SetShare(inbox, bid, store.AccessRead); err == nil {
+	if _, err := st.SetShare(inbox, bid, store.AccessRead, false); err == nil {
 		t.Fatal("inbox was shareable")
 	}
 
@@ -248,7 +248,7 @@ func TestShares(t *testing.T) {
 		t.Error("kinds have separate namespaces")
 	}
 
-	st.SetShare(book, bid, store.AccessRead)
+	st.SetShare(book, bid, store.AccessRead, false)
 	if mounts, _ := st.ListMounts(bid, store.KindCalendar); len(mounts) != 1 {
 		t.Fatalf("calendar mounts: %+v", mounts)
 	}
@@ -263,7 +263,7 @@ func TestShares(t *testing.T) {
 	if err := st.DeleteShare(cal.ID, bid); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("second leave: %v", err)
 	}
-	st.SetShare(cal, bid, store.AccessRead)
+	st.SetShare(cal, bid, store.AccessRead, false)
 	st.DeleteCollection(cal.ID)
 	if mounts, _ := st.ListMounts(bid, store.KindCalendar); len(mounts) != 0 {
 		t.Fatal("mount survived the owner deleting the collection")

@@ -27,6 +27,7 @@ import (
 	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/obs"
 	"github.com/bitflipp/galdav/internal/sched"
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/term"
@@ -147,7 +148,8 @@ func serve(cfg config.Config, st *store.Store) error {
 		smtp := &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
 		mailer, textMailer = smtp, smtp
 	}
-	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: sched.New(st, basePath, mailer)}
+	shares := &sharing.Service{Store: st, BasePath: basePath, RequireAccept: cfg.Sharing.RequireAccept}
+	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, Sharing: shares, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: sched.New(st, basePath, mailer)}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", davSrv.Handler())
@@ -162,7 +164,7 @@ func serve(cfg config.Config, st *store.Store) error {
 		io.WriteString(w, "ok\n")
 	})
 	if cfg.Admin.Enabled {
-		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL}).Handler()
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL, Sharing: shares}).Handler()
 		if err != nil {
 			return err
 		}

@@ -145,18 +145,30 @@ towards the sharee's availability.
 ## Sharing
 
 - A calendar or address book can be shared with other local users, read-only or
-  read-write. Shares are accepted automatically: the collection appears in the
-  sharee's home set (named `<owner>-<name>` if the name is taken) and syncs like
-  any other. Each sharee keeps their own name, colour and order.
+  read-write. By default shares are accepted automatically: the collection
+  appears in the sharee's home set (named `<owner>-<name>` if the name is taken)
+  and syncs like any other. Each sharee keeps their own name, colour and order.
+- With `sharing.require_accept` a new share is an **invitation** that waits for
+  the sharee: in the admin UI (*Invitations* on the start page) or from the
+  notification in a CalendarServer-style client. Declining keeps the collection
+  out of their home; the owner sees "waiting" or "declined", and inviting again
+  asks again.
 - `current-user-privilege-set` reflects the access level. Deleting a mounted
   collection leaves the share; the owner deleting it removes it for everyone.
-- Managed in the admin UI, or by Apple clients through the CalendarServer
-  sharing protocol (`CS:share` POST, `CS:invite`, `CS:allowed-sharing-modes`).
+- Managed in the admin UI, or by clients through the CalendarServer sharing
+  protocol: `CS:share` POST, the `CS:invite` and `CS:allowed-sharing-modes`
+  properties, a **notification collection** per user
+  (`/dav/calendars/<user>/notification/`, advertised as `CS:notification-URL`)
+  holding `CS:invite-notification` resources for invitees and `CS:invite-reply`
+  resources for owners, and `CS:invite-reply` POSTs to the home set to accept or
+  decline. Notifications are dismissed with `DELETE` and syncable with
+  `sync-collection`. The standard `DAV:share-resource` POST (read, read-write,
+  no-access) works on the same invitations. `DAV` advertises
+  `calendarserver-sharing` and `resource-sharing`.
 
-Limits: no invitation notifications (shares are accepted at once) and the Apple
-protocol is untested with real clients; no `DAV:share-resource`, public/
-read-only links or per-object permissions; edits through a read-write share
-are plain writes.
+Limits: the sharing protocols follow the CalendarServer and WebDAV-sharing
+documents but are **untested with real clients**; no per-object permissions,
+no `DAV:sharees` / `DAV:invite` properties, no administrator access level.
 
 ## Admin web UI (`/admin/`)
 

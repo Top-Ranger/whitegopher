@@ -46,6 +46,9 @@ limits:
   max_request_mib: 10    # largest request body, hence the largest single object
   default_quota_mib: 0   # object data each user may own; 0 = unlimited
 
+sharing:
+  require_accept: false  # new shares wait for the other user to accept
+
 scheduling:
   inbox_retention_days: 90   # delete scheduling-inbox items older than this; 0 keeps them
   imip_require_auth: true    # imip-receive only trusts mail the receiving MTA authenticated

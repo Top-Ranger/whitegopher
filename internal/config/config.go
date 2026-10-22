@@ -32,6 +32,8 @@ type Config struct {
 	Metrics Metrics `yaml:"metrics"`
 	// Scheduling tunes invitation handling.
 	Scheduling Scheduling `yaml:"scheduling"`
+	// Sharing configures collection sharing between users.
+	Sharing Sharing `yaml:"sharing"`
 	// Limits bounds request sizes and per-user storage.
 	Limits Limits `yaml:"limits"`
 	// LoginLimit throttles failed logins (DAV and admin UI) per client address.
@@ -62,6 +64,13 @@ type Scheduling struct {
 	// the receiving mail server vouched for the sender (an
 	// Authentication-Results header with dkim, spf or dmarc pass).
 	IMIPRequireAuth bool `yaml:"imip_require_auth"`
+}
+
+type Sharing struct {
+	// RequireAccept makes a new share wait until the other user accepts it
+	// (in the admin UI, or from the notification in a CalendarServer-style
+	// client); otherwise shares appear at once.
+	RequireAccept bool `yaml:"require_accept"`
 }
 
 type Limits struct {

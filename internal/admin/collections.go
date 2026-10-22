@@ -22,6 +22,8 @@ type dashboardData struct {
 	Calendars, AddressBooks []collView
 	// Shared collections other users have shared with this user.
 	SharedCalendars, SharedBooks []collView
+	// Invites are shares waiting for this user to accept.
+	Invites []store.Invite
 }
 
 func (s *Server) views(userID int64, kind string) ([]collView, error) {
@@ -62,7 +64,10 @@ func (s *Server) dashboardData(userID int64) (d dashboardData, err error) {
 	if d.SharedCalendars, err = s.mountViews(userID, store.KindCalendar); err != nil {
 		return
 	}
-	d.SharedBooks, err = s.mountViews(userID, store.KindAddressBook)
+	if d.SharedBooks, err = s.mountViews(userID, store.KindAddressBook); err != nil {
+		return
+	}
+	d.Invites, err = s.Store.PendingInvites(userID)
 	return
 }
 
@@ -284,7 +289,7 @@ func (s *Server) addShare(w http.ResponseWriter, r *http.Request, sess *session)
 		s.collectionPage(w, r, c, http.StatusUnprocessableEntity, "You already own this collection.")
 		return
 	}
-	if _, err := s.Store.SetShare(c, target.ID, access); err != nil {
+	if _, err := s.Sharing.Share(sess.User, c, target, access); err != nil {
 		s.fail(w, err)
 		return
 	}
@@ -301,11 +306,39 @@ func (s *Server) removeShare(w http.ResponseWriter, r *http.Request, sess *sessi
 		notFound(w)
 		return
 	}
-	if err := s.Store.DeleteShare(c.ID, uid); err != nil && !isNotFound(err) {
+	target, err := s.Store.UserByID(uid)
+	if err == nil {
+		err = s.Sharing.Unshare(sess.User, c, target)
+	}
+	if err != nil && !isNotFound(err) {
 		s.fail(w, err)
 		return
 	}
 	http.Redirect(w, r, "/admin/collections/"+strconv.FormatInt(c.ID, 10)+"?ok=saved", http.StatusSeeOther)
+}
+
+// answerInvite accepts or declines a share offered to the session user.
+func (s *Server) answerInvite(accept bool) handler {
+	return func(w http.ResponseWriter, r *http.Request, sess *session) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			notFound(w)
+			return
+		}
+		sh, err := s.Store.ShareByID(sess.User.ID, id)
+		if err == nil {
+			err = s.Sharing.Answer(sess.User, sh, accept)
+		}
+		if err != nil {
+			if isNotFound(err) {
+				notFound(w)
+			} else {
+				s.fail(w, err)
+			}
+			return
+		}
+		http.Redirect(w, r, "/admin/?ok=saved", http.StatusSeeOther)
+	}
 }
 
 // ownedMount loads the share mount {id} if it belongs to the session user.

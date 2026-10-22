@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -65,6 +66,7 @@ func (s *Server) principalRes(u store.User) resource {
 		cal("calendar-home-set"):         hrefXML(s.homeHref("calendars", u.Username)),
 		cal("schedule-inbox-URL"):        hrefXML(s.collHref("calendars", u.Username, "inbox")),
 		cal("schedule-outbox-URL"):       hrefXML(s.collHref("calendars", u.Username, "outbox")),
+		cs("notification-URL"):           hrefXML(s.collHref("calendars", u.Username, store.SpecialNotification)),
 		cal("calendar-user-type"):        "INDIVIDUAL",
 		cal("calendar-user-address-set"): addressSet(s.sched().Addresses(u)),
 		card("addressbook-home-set"):     hrefXML(s.homeHref("addressbooks", u.Username)),
@@ -155,6 +157,9 @@ func (s *Server) collectionRes(u store.User, c store.Collection, seq int64) reso
 		if def, err := s.Store.DefaultCalendar(u, "VEVENT"); err == nil {
 			p[cal("schedule-default-calendar-URL")] = hrefXML(s.collHref("calendars", u.Username, def.Slug))
 		}
+	} else if c.Special == store.SpecialNotification {
+		p[dav("resourcetype")] = "<D:collection/><S:notification/>"
+		p[dav("supported-report-set")] = reportSet()
 	} else if c.Kind == store.KindCalendar {
 		p[dav("resourcetype")] = "<D:collection/><C:calendar/>"
 		if c.Transparent {
@@ -224,12 +229,22 @@ func (s *Server) sharingProps(u store.User, c store.Collection, p map[xml.Name]s
 		if sh.Access == store.AccessReadWrite {
 			access = "<S:read-write/>"
 		}
-		b.WriteString("<S:user><D:href>" + esc(addr) + "</D:href><S:common-name>" + esc(cn) + "</S:common-name><S:invite-accepted/><S:access>" + access + "</S:access></S:user>")
+		status := "<S:invite-accepted/>"
+		switch sh.State {
+		case store.SharePending:
+			status = "<S:invite-noresponse/>"
+		case store.ShareDeclined:
+			status = "<S:invite-declined/>"
+		}
+		b.WriteString("<S:user><D:href>" + esc(addr) + "</D:href><S:common-name>" + esc(cn) + "</S:common-name>" + status + "<S:access>" + access + "</S:access></S:user>")
 	}
 	p[cs("invite")] = b.String()
 }
 
 func contentType(c store.Collection, o store.Object) string {
+	if c.Special == store.SpecialNotification {
+		return "text/xml; charset=utf-8"
+	}
 	if c.Kind == store.KindCalendar {
 		return "text/calendar; charset=utf-8; component=" + o.Component
 	}
@@ -251,6 +266,15 @@ func (s *Server) objectRes(u store.User, c store.Collection, o store.Object) res
 	}}
 	if o.ScheduleTag != "" {
 		r.props[cal("schedule-tag")] = `"` + o.ScheduleTag + `"`
+	}
+	if c.Special == store.SpecialNotification {
+		// o.Component is "<kind>:<calendar|addressbook>".
+		kind, shared, _ := strings.Cut(o.Component, ":")
+		el := "<S:" + kind + "/>"
+		if kind == sharing.KindInvite {
+			el = `<S:` + kind + ` shared-type="` + esc(shared) + `"/>`
+		}
+		r.props[cs("notificationtype")] = el
 	}
 	return r
 }

@@ -20,6 +20,7 @@ import (
 
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/netx"
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -51,6 +52,8 @@ type Server struct {
 	// the feature is off.
 	Mailer  TextMailer
 	BaseURL string
+	// Sharing manages share invitations. Defaults to accepting shares at once.
+	Sharing *sharing.Service
 
 	pages map[string]*template.Template
 	// codeLimiter slows guessing of second-factor codes once the password is
@@ -98,6 +101,9 @@ var funcs = template.FuncMap{
 func (s *Server) init() error {
 	if s.Limiter == nil {
 		s.Limiter = netx.NewLimiter(10, 15*time.Minute)
+	}
+	if s.Sharing == nil {
+		s.Sharing = &sharing.Service{Store: s.Store, BasePath: s.DAVPath}
 	}
 	s.codeLimiter = netx.NewLimiter(5, 15*time.Minute)
 	s.resetLimiter = netx.NewLimiter(10, time.Hour)
@@ -150,6 +156,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/collections/{id}/delete", s.authed(s.deleteCollection))
 	mux.HandleFunc("POST /admin/collections/{id}/shares", s.authed(s.addShare))
 	mux.HandleFunc("POST /admin/collections/{id}/shares/{uid}/remove", s.authed(s.removeShare))
+	mux.HandleFunc("POST /admin/invites/{id}/accept", s.authed(s.answerInvite(true)))
+	mux.HandleFunc("POST /admin/invites/{id}/decline", s.authed(s.answerInvite(false)))
 	mux.HandleFunc("GET /admin/shared/{id}", s.authed(s.mountForm))
 	mux.HandleFunc("POST /admin/shared/{id}", s.authed(s.updateMount))
 	mux.HandleFunc("POST /admin/shared/{id}/leave", s.authed(s.leaveMount))

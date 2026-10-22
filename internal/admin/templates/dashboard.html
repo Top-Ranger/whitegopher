@@ -42,6 +42,28 @@
 </section>
 {{end}}
 
+{{with .Data}}{{if .Invites}}
+<section>
+  <h2>Invitations</h2>
+  <p class="muted">Other users want to share these with you. They appear in your apps once you accept.</p>
+  <table>
+    <tr><th>Name</th><th>Type</th><th class="hide">From</th><th>Access</th><th></th></tr>
+    {{range .Invites}}
+    <tr>
+      <td>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.Slug}}{{end}}</td>
+      <td>{{if eq .Collection.Kind "calendar"}}Calendar{{else}}Address book{{end}}</td>
+      <td class="hide">{{.OwnerName}}</td>
+      <td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td>
+      <td class="row">
+        <form method="post" action="/admin/invites/{{.ID}}/accept"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">Accept</button></form>
+        <form method="post" action="/admin/invites/{{.ID}}/decline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">Decline</button></form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</section>
+{{end}}{{end}}
+
 {{with .Data}}{{if or .SharedCalendars .SharedBooks}}
 <section>
   <h2>Shared with you</h2>

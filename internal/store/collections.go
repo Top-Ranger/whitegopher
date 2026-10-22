@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -39,7 +40,10 @@ type Collection struct {
 	OwnerName string // username of the owner
 }
 
-const SpecialInbox = "inbox"
+const (
+	SpecialInbox        = "inbox"
+	SpecialNotification = "notification"
+)
 
 const collCols = `id, owner_id, kind, slug, display_name, description, color, sort_order, components, timezone, special, transparent`
 
@@ -133,19 +137,28 @@ func (s *Store) ObjectCount(collectionID int64) (n int, err error) {
 
 // Inbox returns the user's scheduling inbox, creating it on first use.
 func (s *Store) Inbox(ownerID int64) (Collection, error) {
-	c, err := s.GetCollection(ownerID, KindCalendar, SpecialInbox)
+	return s.special(ownerID, SpecialInbox, "Inbox", "VEVENT,VTODO,VJOURNAL,VFREEBUSY")
+}
+
+// Notifications returns the user's notification collection (sharing
+// invitations and replies), creating it on first use.
+func (s *Store) Notifications(ownerID int64) (Collection, error) {
+	return s.special(ownerID, SpecialNotification, "Notifications", "")
+}
+
+func (s *Store) special(ownerID int64, slug, name, components string) (Collection, error) {
+	c, err := s.GetCollection(ownerID, KindCalendar, slug)
 	if err == nil {
 		return c, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
 		return c, err
 	}
-	c = Collection{OwnerID: ownerID, Kind: KindCalendar, Slug: SpecialInbox, DisplayName: "Inbox",
-		Components: "VEVENT,VTODO,VJOURNAL,VFREEBUSY", Special: SpecialInbox}
+	c = Collection{OwnerID: ownerID, Kind: KindCalendar, Slug: slug, DisplayName: name, Components: components, Special: slug}
 	c.ID, err = s.CreateCollection(c)
 	if errors.Is(err, ErrExists) { // lost a race, or a plain calendar holds the name
-		if c, err = s.GetCollection(ownerID, KindCalendar, SpecialInbox); err == nil && c.Special != SpecialInbox {
-			err = errors.New("store: a calendar named \"inbox\" blocks the scheduling inbox")
+		if c, err = s.GetCollection(ownerID, KindCalendar, slug); err == nil && c.Special != slug {
+			err = fmt.Errorf("store: a calendar named %q blocks the special collection", slug)
 		}
 	}
 	return c, err

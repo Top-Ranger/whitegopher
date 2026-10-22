@@ -15,6 +15,7 @@ import (
 	"github.com/bitflipp/galdav/internal/admin"
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/dav"
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 	"github.com/bitflipp/galdav/internal/storetest"
 )
@@ -26,16 +27,20 @@ type env struct {
 	cli *http.Client
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvOpts(t, false) }
+
+// newEnvOpts can make new shares wait for the sharee's acceptance.
+func newEnvOpts(t *testing.T, requireAccept bool) *env {
 	t.Helper()
 	st := storetest.New(t)
 	a := &auth.Authenticator{Store: st, Realm: "R"}
-	ui, err := (&admin.Server{Store: st, Auth: a, DAVPath: "/dav"}).Handler()
+	shares := &sharing.Service{Store: st, BasePath: "/dav", RequireAccept: requireAccept}
+	ui, err := (&admin.Server{Store: st, Auth: a, DAVPath: "/dav", Sharing: shares}).Handler()
 	if err != nil {
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/", (&dav.Server{Store: st, Auth: a, BasePath: "/dav"}).Handler())
+	mux.Handle("/", (&dav.Server{Store: st, Auth: a, BasePath: "/dav", Sharing: shares}).Handler())
 	mux.Handle("/admin/", ui)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)

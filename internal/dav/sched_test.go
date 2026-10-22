@@ -11,6 +11,7 @@ import (
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/dav"
 	"github.com/bitflipp/galdav/internal/sched"
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 	"github.com/bitflipp/galdav/internal/storetest"
 )
@@ -40,7 +41,11 @@ type env struct {
 	alice, bob who
 }
 
-func newSchedEnv(t *testing.T, mail sched.Mailer) *env {
+func newSchedEnv(t *testing.T, mail sched.Mailer) *env { return newSchedEnvOpts(t, mail, false) }
+
+// newSchedEnvOpts is newSchedEnv with the option to make new shares wait for
+// the sharee's acceptance.
+func newSchedEnvOpts(t *testing.T, mail sched.Mailer, requireAccept bool) *env {
 	t.Helper()
 	st := storetest.New(t)
 	for _, n := range []string{"alice", "bob"} {
@@ -48,7 +53,8 @@ func newSchedEnv(t *testing.T, mail sched.Mailer) *env {
 			t.Fatal(err)
 		}
 	}
-	s := &dav.Server{Store: st, Auth: &auth.Authenticator{Store: st, Realm: "R"}, BasePath: "/dav", Sched: sched.New(st, "/dav", mail)}
+	s := &dav.Server{Store: st, Auth: &auth.Authenticator{Store: st, Realm: "R"}, BasePath: "/dav", Sched: sched.New(st, "/dav", mail),
+		Sharing: &sharing.Service{Store: st, BasePath: "/dav", RequireAccept: requireAccept}}
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
 	e := &env{t: t, st: st, url: ts.URL,

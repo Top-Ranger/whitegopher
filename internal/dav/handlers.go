@@ -239,7 +239,7 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		return
 	}
 	if c.Special != "" {
-		http.Error(w, "the scheduling inbox is filled by the server", http.StatusForbidden)
+		http.Error(w, "this collection is filled by the server", http.StatusForbidden)
 		return
 	}
 	if c.Access == store.AccessRead {
@@ -600,9 +600,24 @@ func shareeSettable(it propItem) bool {
 	return false
 }
 
-// postCollection handles POST on a collection: the CalendarServer sharing
-// protocol (CS:share), by which an owner invites users.
+// postCollection handles POST on a collection or home set: the sharing
+// protocols, by which owners invite users (CS:share, DAV:share-resource) and
+// invitees answer (CS:invite-reply).
 func (s *Server) postCollection(w http.ResponseWriter, r *http.Request, u store.User, t target) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	root, rerr := rootElement(body)
+	if t.n == 2 && t.area != "principals" {
+		if rerr != nil || root != cs("invite-reply") {
+			http.Error(w, "unsupported POST body", http.StatusForbidden)
+			return
+		}
+		s.inviteReply(w, r, u, t, body)
+		return
+	}
 	if t.n != 3 {
 		http.Error(w, "POST is not supported here", http.StatusMethodNotAllowed)
 		return
@@ -611,12 +626,7 @@ func (s *Server) postCollection(w http.ResponseWriter, r *http.Request, u store.
 	if !ok {
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if root, err := rootElement(body); err != nil || root != cs("share") {
+	if rerr != nil || (root != cs("share") && root != dav("share-resource")) {
 		http.Error(w, "unsupported POST body", http.StatusForbidden)
 		return
 	}
@@ -624,59 +634,86 @@ func (s *Server) postCollection(w http.ResponseWriter, r *http.Request, u store.
 		writeError(w, http.StatusForbidden, "<D:need-privileges/>")
 		return
 	}
-	var req struct {
-		Set []struct {
-			Href string    `xml:"DAV: href"`
-			RW   *struct{} `xml:"http://calendarserver.org/ns/ read-write"`
-		} `xml:"http://calendarserver.org/ns/ set"`
-		Remove []struct {
-			Href string `xml:"DAV: href"`
-		} `xml:"http://calendarserver.org/ns/ remove"`
-	}
-	if err := xml.Unmarshal(body, &req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	// Resolve everything first so a bad entry changes nothing.
+
 	type change struct {
-		user   store.User
+		href   string
 		access string // "" removes
 	}
 	var changes []change
-	resolve := func(href string) (store.User, bool) {
-		target, ok := s.sched().Lookup(strings.TrimSpace(href))
-		if !ok || target.ID == u.ID {
-			http.Error(w, "unknown or invalid sharee: "+strings.TrimSpace(href), http.StatusBadRequest)
-			return target, false
+	if root == cs("share") {
+		var req struct {
+			Set []struct {
+				Href string    `xml:"DAV: href"`
+				RW   *struct{} `xml:"http://calendarserver.org/ns/ read-write"`
+			} `xml:"http://calendarserver.org/ns/ set"`
+			Remove []struct {
+				Href string `xml:"DAV: href"`
+			} `xml:"http://calendarserver.org/ns/ remove"`
 		}
-		return target, true
-	}
-	for _, x := range req.Set {
-		target, ok := resolve(x.Href)
-		if !ok {
+		if err := xml.Unmarshal(body, &req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		access := store.AccessRead
-		if x.RW != nil {
-			access = store.AccessReadWrite
+		for _, x := range req.Set {
+			access := store.AccessRead
+			if x.RW != nil {
+				access = store.AccessReadWrite
+			}
+			changes = append(changes, change{x.Href, access})
 		}
-		changes = append(changes, change{target, access})
-	}
-	for _, x := range req.Remove {
-		target, ok := resolve(x.Href)
-		if !ok {
+		for _, x := range req.Remove {
+			changes = append(changes, change{x.Href, ""})
+		}
+	} else {
+		var req struct {
+			Sharees []struct {
+				Href   string `xml:"DAV: href"`
+				Access struct {
+					Read      *struct{} `xml:"DAV: read"`
+					ReadWrite *struct{} `xml:"DAV: read-write"`
+					NoAccess  *struct{} `xml:"DAV: no-access"`
+				} `xml:"DAV: share-access"`
+			} `xml:"DAV: sharee"`
+		}
+		if err := xml.Unmarshal(body, &req); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
-		changes = append(changes, change{target, ""})
+		for _, x := range req.Sharees {
+			switch {
+			case x.Access.ReadWrite != nil:
+				changes = append(changes, change{x.Href, store.AccessReadWrite})
+			case x.Access.Read != nil:
+				changes = append(changes, change{x.Href, store.AccessRead})
+			case x.Access.NoAccess != nil:
+				changes = append(changes, change{x.Href, ""})
+			default:
+				writeError(w, http.StatusForbidden, "<D:invalid-access-level/>")
+				return
+			}
+		}
 	}
+
+	// Resolve everything first so a bad entry changes nothing.
+	type resolved struct {
+		user   store.User
+		access string
+	}
+	var todo []resolved
 	for _, ch := range changes {
+		target, ok := s.sched().Lookup(strings.TrimSpace(ch.href))
+		if !ok || target.ID == u.ID {
+			http.Error(w, "unknown or invalid sharee: "+strings.TrimSpace(ch.href), http.StatusBadRequest)
+			return
+		}
+		todo = append(todo, resolved{target, ch.access})
+	}
+	for _, ch := range todo {
 		var err error
 		if ch.access == "" {
-			if err = s.Store.DeleteShare(c.ID, ch.user.ID); errors.Is(err, store.ErrNotFound) {
-				err = nil
-			}
+			err = s.sharing().Unshare(u, c, ch.user)
 		} else {
-			_, err = s.Store.SetShare(c, ch.user.ID, ch.access)
+			_, err = s.sharing().Share(u, c, ch.user, ch.access)
 		}
 		if err != nil {
 			s.fail(w, r, err)
@@ -684,4 +721,64 @@ func (s *Server) postCollection(w http.ResponseWriter, r *http.Request, u store.
 		}
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// inviteReply handles CS:invite-reply POSTed to a home set: the invitee's
+// answer to a sharing invitation (RFC-less, as defined by CalendarServer).
+func (s *Server) inviteReply(w http.ResponseWriter, r *http.Request, u store.User, t target, body []byte) {
+	var req struct {
+		Accepted  *struct{} `xml:"http://calendarserver.org/ns/ invite-accepted"`
+		Declined  *struct{} `xml:"http://calendarserver.org/ns/ invite-declined"`
+		InReplyTo string    `xml:"http://calendarserver.org/ns/ in-reply-to"`
+		HostURL   struct {
+			Href string `xml:"DAV: href"`
+		} `xml:"http://calendarserver.org/ns/ hosturl"`
+	}
+	if err := xml.Unmarshal(body, &req); err != nil || (req.Accepted == nil) == (req.Declined == nil) {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	sh, err := s.Store.ShareByInvite(u.ID, strings.TrimSpace(req.InReplyTo))
+	if errors.Is(err, store.ErrNotFound) {
+		sh, err = s.shareByHost(u, t, req.HostURL.Href)
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		http.Error(w, "no such invitation", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err := s.sharing().Answer(u, sh, req.Accepted != nil); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// shareByHost finds the user's share of the collection named by a hosturl
+// (/dav/calendars/<owner>/<slug>/).
+func (s *Server) shareByHost(u store.User, t target, host string) (store.Share, error) {
+	pu, err := url.Parse(strings.TrimSpace(host))
+	if err != nil {
+		return store.Share{}, store.ErrNotFound
+	}
+	parts := strings.Split(strings.Trim(strings.TrimPrefix(pu.Path, s.BasePath), "/"), "/")
+	if len(parts) != 3 || parts[0] != t.area {
+		return store.Share{}, store.ErrNotFound
+	}
+	owner, err := s.Store.UserByName(parts[1])
+	if err != nil {
+		return store.Share{}, err
+	}
+	kind := store.KindCalendar
+	if t.area == "addressbooks" {
+		kind = store.KindAddressBook
+	}
+	c, err := s.Store.GetCollection(owner.ID, kind, parts[2])
+	if err != nil {
+		return store.Share{}, err
+	}
+	return s.Store.ShareFor(c.ID, u.ID)
 }

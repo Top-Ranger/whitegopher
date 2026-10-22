@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitflipp/galdav/internal/auth"
 	"github.com/bitflipp/galdav/internal/sched"
+	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -23,11 +24,18 @@ type Server struct {
 	// is created on first use.
 	Sched *sched.Service
 	once  sync.Once
+	// Sharing manages share invitations; if nil, shares are accepted at once.
+	Sharing *sharing.Service
 	// MaxBody caps a request body; 0 means 10 MiB.
 	MaxBody int64
 	// DefaultQuota caps the object data each user owns, unless the user has
 	// a quota of their own. 0 means unlimited.
 	DefaultQuota int64
+}
+
+func (s *Server) sharing() *sharing.Service {
+	s.once.Do(s.initDefaults)
+	return s.Sharing
 }
 
 // quotaFor returns the byte limit for u's data (0 = unlimited).
@@ -38,12 +46,18 @@ func (s *Server) quotaFor(u store.User) int64 {
 	return s.DefaultQuota
 }
 
+// initDefaults fills in the optional services on first use.
+func (s *Server) initDefaults() {
+	if s.Sched == nil {
+		s.Sched = sched.New(s.Store, s.BasePath, nil)
+	}
+	if s.Sharing == nil {
+		s.Sharing = &sharing.Service{Store: s.Store, BasePath: s.BasePath}
+	}
+}
+
 func (s *Server) sched() *sched.Service {
-	s.once.Do(func() {
-		if s.Sched == nil {
-			s.Sched = sched.New(s.Store, s.BasePath, nil)
-		}
-	})
+	s.once.Do(s.initDefaults)
 	return s.Sched
 }
 
@@ -76,7 +90,7 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) serveSiteRoot(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
 	if r.Method == http.MethodOptions {
-		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol")
+		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol, calendarserver-sharing, resource-sharing")
 		w.Header().Set("Allow", "OPTIONS, PROPFIND")
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -128,7 +142,9 @@ var slugRE = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$`)
 func ValidSlug(s string) bool { return slugRE.MatchString(s) && !reservedSlug(s) }
 
 // reservedSlug names the scheduling collections, which are not user-creatable.
-func reservedSlug(s string) bool { return s == "inbox" || s == "outbox" }
+func reservedSlug(s string) bool {
+	return s == "inbox" || s == "outbox" || s == store.SpecialNotification
+}
 
 func validURI(s string) bool {
 	if s == "" || len(s) > 255 || s == "." || s == ".." {
@@ -200,7 +216,7 @@ func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	if r.Method == http.MethodOptions {
-		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol")
+		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol, calendarserver-sharing, resource-sharing")
 		w.Header().Set("Allow", "OPTIONS, PROPFIND, PROPPATCH, REPORT, POST, MKCALENDAR, MKCOL, GET, HEAD, PUT, DELETE")
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -237,8 +253,14 @@ func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 
 // lookupCollection resolves t's collection, writing 404 on absence.
 func (s *Server) lookupCollection(w http.ResponseWriter, r *http.Request, u store.User, t target) (store.Collection, bool) {
-	if t.kind() == store.KindCalendar && t.slug == store.SpecialInbox {
-		if _, err := s.Store.Inbox(u.ID); err != nil { // created on first use
+	if t.kind() == store.KindCalendar && (t.slug == store.SpecialInbox || t.slug == store.SpecialNotification) {
+		var err error // created on first use
+		if t.slug == store.SpecialInbox {
+			_, err = s.Store.Inbox(u.ID)
+		} else {
+			_, err = s.Store.Notifications(u.ID)
+		}
+		if err != nil {
 			s.fail(w, r, err)
 			return store.Collection{}, false
 		}
