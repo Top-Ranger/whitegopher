@@ -51,6 +51,8 @@ For a real installation follow [docs/deployment.md](docs/deployment.md).
 
 ```
 cmd/whitegopher/        CLI: serve, useradd, import-baikal
+internal/server/        HTTP wiring, listeners, graceful shutdown
+internal/buildinfo/     binary version string
 internal/config/        YAML config and environment overrides
 internal/store/         MySQL/MariaDB store, embedded migrations
 internal/auth/          password hashing, Basic auth middleware
