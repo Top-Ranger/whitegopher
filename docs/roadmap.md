@@ -35,8 +35,7 @@ sharing especially), and the results decide the order of everything below.
 
 ## Security and operations
 
-- App passwords (per-device credentials) and optional two-factor sign-in for
-  the admin UI; password reset by email.
+- Optional two-factor sign-in for the admin UI; password reset by email.
 - Verify on MySQL 8 (development used MariaDB) and with multiple instances
   sharing one database.
 

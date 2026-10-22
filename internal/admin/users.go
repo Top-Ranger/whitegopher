@@ -16,16 +16,63 @@ type accountData struct {
 	Default string
 	// HideFreeBusy withholds the user's availability from other users.
 	HideFreeBusy bool
+	AppPasswords []store.AppPassword
+	// NewToken is an app password just created; it is shown once.
+	NewToken string
 }
 
 func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
+	s.accountPageWith(w, r, sess, status, errMsg, "")
+}
+
+func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg, newToken string) {
 	cals, err := s.Store.ListCollections(sess.User.ID, store.KindCalendar)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
+	aps, err := s.Store.ListAppPasswords(sess.User.ID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
 	s.render(w, r, "account", status, page{Title: "Account", Nav: "account", Error: errMsg,
-		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy}})
+		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy,
+			AppPasswords: aps, NewToken: newToken}})
+}
+
+func (s *Server) createAppPassword(w http.ResponseWriter, r *http.Request, sess *session) {
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	if name == "" || len(name) > 100 {
+		s.accountPage(w, r, sess, http.StatusUnprocessableEntity, "Give the app password a name (up to 100 characters), e.g. the device.")
+		return
+	}
+	token, hash, err := auth.NewAppPassword()
+	if err == nil {
+		_, err = s.Store.CreateAppPassword(sess.User.ID, name, hash)
+	}
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	s.accountPageWith(w, r, sess, http.StatusOK, "", token)
+}
+
+func (s *Server) deleteAppPassword(w http.ResponseWriter, r *http.Request, sess *session) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		notFound(w)
+		return
+	}
+	if err := s.Store.DeleteAppPassword(sess.User.ID, id); err != nil {
+		if isNotFound(err) {
+			notFound(w)
+		} else {
+			s.fail(w, err)
+		}
+		return
+	}
+	http.Redirect(w, r, "/admin/account?ok=deleted", http.StatusSeeOther)
 }
 
 func (s *Server) accountForm(w http.ResponseWriter, r *http.Request, sess *session) {

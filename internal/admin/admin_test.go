@@ -291,6 +291,33 @@ func TestUserManagement(t *testing.T) {
 		t.Fatal("hide_freebusy not cleared")
 	}
 
+	// App passwords: shown once, usable for DAV, revocable, not for the UI.
+	resp, b = e.post(bc, "/admin/account/app-passwords", "name", " ")
+	status(t, resp, 422, b)
+	resp, b = e.post(bc, "/admin/account/app-passwords", "name", "Phone")
+	status(t, resp, 200, b)
+	m := regexp.MustCompile(`gdp-[a-z2-7]{5}(-[a-z2-7]{5}){3}`).FindString(b)
+	if m == "" {
+		t.Fatalf("no token shown: %s", b)
+	}
+	if _, ok := a.VerifyDAV("bob", m); !ok {
+		t.Fatal("new app password does not authenticate")
+	}
+	resp, b = e.do(bc, "GET", "/admin/account", nil)
+	status(t, resp, 200, b)
+	contains(t, b, "Phone")
+	if strings.Contains(b, m) {
+		t.Fatal("token shown again")
+	}
+	resp, b = e.do(newClient(), "POST", "/admin/login", url.Values{"username": {"bob"}, "password": {m}})
+	status(t, resp, 401, b)
+	aps, _ := e.st.ListAppPasswords(bob.ID)
+	resp, b = e.post(bc, "/admin/account/app-passwords/"+strconv.FormatInt(aps[0].ID, 10)+"/delete")
+	status(t, resp, 303, b)
+	if _, ok := a.VerifyDAV("bob", m); ok {
+		t.Fatal("revoked app password still works")
+	}
+
 	// Admin edits, resets and deletes; last-admin and self protections hold.
 	bid := strconv.FormatInt(bob.ID, 10)
 	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert", "is_admin", "1")

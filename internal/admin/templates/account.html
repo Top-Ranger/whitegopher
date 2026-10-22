@@ -21,6 +21,34 @@
 </section>
 {{end}}{{end}}
 <section>
+  <h2>App passwords</h2>
+  <p class="muted">Use one per device or app instead of your account password. Each can be revoked on its own, and a leaked one never exposes your account password.</p>
+  {{with .Data.NewToken}}
+  <div class="flash" role="status">
+    <p>New app password. <strong>Copy it now: it is shown only once.</strong></p>
+    <p><code>{{.}}</code></p>
+  </div>
+  {{end}}
+  {{if .Data.AppPasswords}}
+  <table>
+    <tr><th>Name</th><th>Created</th><th>Last used</th><th></th></tr>
+    {{range .Data.AppPasswords}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{.CreatedAt.Format "2006-01-02"}}</td>
+      <td>{{if .LastUsedAt}}{{.LastUsedAt.Format "2006-01-02 15:04"}}{{else}}never{{end}}</td>
+      <td><form method="post" action="/admin/account/app-passwords/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="danger">Revoke</button></form></td>
+    </tr>
+    {{end}}
+  </table>
+  {{end}}
+  <form method="post" action="/admin/account/app-passwords" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>Name <input type="text" name="name" maxlength="100" placeholder="e.g. Phone" required></label>
+    <div><button type="submit" class="secondary">Create app password</button></div>
+  </form>
+</section>
+<section>
   <h2>Privacy</h2>
   <form method="post" action="/admin/account/privacy" class="stack">
     <input type="hidden" name="csrf" value="{{.CSRF}}">

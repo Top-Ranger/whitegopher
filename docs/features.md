@@ -28,6 +28,11 @@ or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by 
 - HTTP Basic only (use TLS). Passwords are stored as argon2id. Digest is not
   supported. A password hash imported from Baikal is kept only until that
   user's first login, which replaces it with argon2id.
+- App passwords (*Account → App passwords*): random per-device credentials
+  (`gdp-xxxxx-...`) that work for DAV in place of the account password, shown
+  once, revocable one by one, with last-used time. They are stored as SHA-256
+  (they are random, and it keeps every request cheap) and are not accepted for
+  the admin UI.
 - Users only reach their own namespace (and collections shared with them).
 
 - Failed logins, on DAV and in the admin UI, are logged (`login failed` with
@@ -35,7 +40,7 @@ or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by 
   default 10 per 15 minutes; `429` with `Retry-After`). The address is the
   rightmost `X-Forwarded-For` entry that is not a trusted proxy.
 
-Limits: the rate limit is in memory and per process. No LDAP/OIDC, no app passwords, no two-factor authentication.
+Limits: the rate limit is in memory and per process. No LDAP/OIDC and no two-factor authentication.
 
 ## Calendars and contacts
 

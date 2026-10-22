@@ -135,3 +135,57 @@ func TestDAVLoginLimitAndLogging(t *testing.T) {
 		t.Fatalf("failed login not logged with the forwarded address:\n%s", out)
 	}
 }
+
+func TestAppPasswords(t *testing.T) {
+	st := storetest.New(t)
+	hash, _ := auth.HashPassword("secret")
+	aid, _ := st.CreateUser(store.User{Username: "alice", PasswordHash: hash})
+	bid, _ := st.CreateUser(store.User{Username: "bob", PasswordHash: hash})
+	a := &auth.Authenticator{Store: st, Realm: "R"}
+
+	token, h, err := auth.NewAppPassword()
+	if err != nil || !strings.HasPrefix(token, auth.AppPasswordPrefix) || len(token) != len("gdp-")+20+3 {
+		t.Fatalf("token %q: %v", token, err)
+	}
+	if h != auth.HashAppPassword(token) || strings.Contains(h, token) {
+		t.Fatal("hash mismatch")
+	}
+	other, _, _ := auth.NewAppPassword()
+	if other == token {
+		t.Fatal("tokens repeat")
+	}
+	id, err := st.CreateAppPassword(aid, "phone", h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if u, ok := a.VerifyDAV("alice", token); !ok || u.Username != "alice" {
+		t.Fatal("app password rejected")
+	}
+	if _, ok := a.VerifyDAV("alice", "secret"); !ok {
+		t.Fatal("account password rejected on DAV")
+	}
+	if _, ok := a.VerifyDAV("bob", token); ok {
+		t.Fatal("alice's app password works for bob")
+	}
+	if _, ok := a.VerifyDAV("alice", other); ok {
+		t.Fatal("unknown app password accepted")
+	}
+	// An app password is not an account password (admin UI sign-in).
+	if _, ok := a.Verify("alice", token); ok {
+		t.Fatal("app password accepted as account password")
+	}
+	list, _ := st.ListAppPasswords(aid)
+	if len(list) != 1 || list[0].Name != "phone" || list[0].LastUsedAt == nil {
+		t.Fatalf("%+v", list)
+	}
+	if err := st.DeleteAppPassword(bid, id); err == nil {
+		t.Fatal("bob revoked alice's app password")
+	}
+	if err := st.DeleteAppPassword(aid, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := a.VerifyDAV("alice", token); ok {
+		t.Fatal("revoked app password still works")
+	}
+}

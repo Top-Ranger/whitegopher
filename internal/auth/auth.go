@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -100,6 +102,42 @@ func (a *Authenticator) Verify(username, password string) (store.User, bool) {
 	return u, true
 }
 
+// AppPasswordPrefix starts every app password, so they are recognisable (and
+// can be told apart from account passwords without a database lookup).
+const AppPasswordPrefix = "gdp-"
+
+// NewAppPassword returns a random per-device password such as
+// "gdp-abcde-fghij-klmno-pqrst" and the hash to store for it.
+func NewAppPassword() (token, hash string, err error) {
+	b := make([]byte, 13)
+	if _, err = rand.Read(b); err != nil {
+		return "", "", err
+	}
+	s := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b))[:20]
+	token = AppPasswordPrefix + s[0:5] + "-" + s[5:10] + "-" + s[10:15] + "-" + s[15:20]
+	return token, HashAppPassword(token), nil
+}
+
+// HashAppPassword is the stored form of an app password. App passwords are
+// long and random, so a fast hash is enough and keeps every DAV request cheap.
+func HashAppPassword(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+// VerifyDAV checks the credentials of a DAV request: an app password of the
+// user, or their account password.
+func (a *Authenticator) VerifyDAV(username, password string) (store.User, bool) {
+	if strings.HasPrefix(password, AppPasswordPrefix) {
+		if u, err := a.Store.UserByName(username); err == nil {
+			if ok, _ := a.Store.UseAppPassword(u.ID, HashAppPassword(password)); ok {
+				return u, true
+			}
+		}
+	}
+	return a.Verify(username, password)
+}
+
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)
 
 // ValidUsername reports whether name is acceptable for a new account. The
@@ -127,7 +165,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 		if name, pass, ok := r.BasicAuth(); ok {
-			u, good := a.Verify(name, pass)
+			u, good := a.VerifyDAV(name, pass)
 			if good {
 				a.Limiter.Reset(ip)
 				obs.SetUser(r.Context(), u.Username)
