@@ -264,6 +264,9 @@ proxy's access log.
   (`login_limit`) and logged as `login failed ... ip=...` in the journal, with
   the real client address when `proxy.trusted` is right. `fail2ban` can watch
   that line (`journalctl -u galdav`) to block repeat offenders at the firewall.
+- Public links (`/public/<token>`) are readable by anyone who has the address.
+  Treat them like a password; replace or turn off a link in the collection's
+  page if it leaks.
 - Anyone with an account can query any user's free-busy times (no details)
   unless that user hides it (Account → Privacy). Do not create accounts for
   people you do not want to see that.

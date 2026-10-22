@@ -50,6 +50,21 @@
     <div><button type="submit" class="secondary">Share</button></div>
   </form>
 </section>
+<section id="public">
+  <h2>Public link</h2>
+  {{if .PublicURL}}
+  <p>Anyone with this address can read everything in this {{if .IsCal}}calendar{{else}}address book{{end}}, without signing in{{if .IsCal}} (subscribe to it from a calendar app or website){{end}}. That includes attendees and notes.</p>
+  <p><code>{{.PublicURL}}</code></p>
+  <div class="row">
+    <form method="post" action="/admin/collections/{{.ID}}/public"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">New address</button></form>
+    <form method="post" action="/admin/collections/{{.ID}}/public/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="danger">Turn off</button></form>
+  </div>
+  <p class="muted">A new address stops the old one from working.</p>
+  {{else}}
+  <p class="muted">Off. A public link is a read-only address anyone can open without a login, e.g. to publish a calendar.</p>
+  <form method="post" action="/admin/collections/{{.ID}}/public"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">Create public link</button></form>
+  {{end}}
+</section>
 <section>
   <h2>Delete</h2>
   <p>This permanently deletes the {{if .IsCal}}calendar{{else}}address book{{end}} and everything in it.</p>

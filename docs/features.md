@@ -166,8 +166,18 @@ towards the sharee's availability.
   no-access) works on the same invitations. `DAV` advertises
   `calendarserver-sharing` and `resource-sharing`.
 
+- **Public links**: the owner of a calendar or address book can turn on a
+  read-only link (*Collection → Public link*) that works without a login:
+  `/public/<token>.ics` serves the whole calendar as one iCalendar feed to
+  subscribe to, `/public/<token>.vcf` an address book as one vCard file. The
+  128-bit random token is the only credential; it can be replaced (the old
+  address stops working) or turned off. The feed contains everything in the
+  collection, attendees and notes included. Wrong tokens are rate limited per
+  client address.
+
 Limits: the sharing protocols follow the CalendarServer and WebDAV-sharing
-documents but are **untested with real clients**; no per-object permissions,
+documents but are **untested with real clients**; no per-object permissions, public links are
+all-or-nothing (no "busy only" view),
 no `DAV:sharees` / `DAV:invite` properties, no administrator access level.
 
 ## Admin web UI (`/admin/`)

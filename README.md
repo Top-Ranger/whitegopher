@@ -14,11 +14,14 @@ See [docs/features.md](docs/features.md) and the
 
 ## What it does
 
-Calendars (events, tasks) and address books over CalDAV/CardDAV with Basic auth;
-sync (`sync-collection`), queries and free-busy; invitations and
-replies between users, with optional email to outsiders (scheduling, RFC 6638);
-sharing between users, read-only or read-write; a web admin UI; and a one-time
-importer for Baikal databases.
+Calendars (events, tasks) and address books over CalDAV/CardDAV with Basic auth
+and per-device app passwords; sync (`sync-collection`), queries (including
+partial data and `expand`) and free-busy; invitations and replies between
+users, by email with outsiders in both directions (scheduling, RFC 6638, iMIP);
+sharing between users, read-only or read-write, with optional invitations and
+read-only public links; a web admin UI with two-factor sign-in and password
+reset by email; quotas, rate limiting, access log and Prometheus metrics; and a
+one-time importer for Baikal databases.
 
 ## Documentation
 

@@ -154,6 +154,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /admin/collections/{id}", s.authed(s.collectionForm))
 	mux.HandleFunc("POST /admin/collections/{id}", s.authed(s.updateCollection))
 	mux.HandleFunc("POST /admin/collections/{id}/delete", s.authed(s.deleteCollection))
+	mux.HandleFunc("POST /admin/collections/{id}/public", s.authed(s.setPublicLink))
+	mux.HandleFunc("POST /admin/collections/{id}/public/delete", s.authed(s.removePublicLink))
 	mux.HandleFunc("POST /admin/collections/{id}/shares", s.authed(s.addShare))
 	mux.HandleFunc("POST /admin/collections/{id}/shares/{uid}/remove", s.authed(s.removeShare))
 	mux.HandleFunc("POST /admin/invites/{id}/accept", s.authed(s.answerInvite(true)))
@@ -295,6 +297,19 @@ func (s *Server) adminOnly(h handler) http.HandlerFunc {
 }
 
 // --- rendering ------------------------------------------------------------
+
+// origin is the public scheme://host of this server: the configured BaseURL,
+// else what the request came in on.
+func (s *Server) origin(r *http.Request) string {
+	if s.BaseURL != "" {
+		return strings.TrimRight(s.BaseURL, "/")
+	}
+	scheme := "http"
+	if s.proxies().IsHTTPS(r) {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
+}
 
 func (s *Server) davURL(r *http.Request) string {
 	scheme := "http"

@@ -13,11 +13,7 @@ The checklist, test data and seed script are in
 [client-testing.md](client-testing.md). Fix whatever surfaces. This is the biggest open risk (scheduling and Apple
 sharing especially), and the results decide the order of everything below.
 
-## Sharing
-
-- Optional read-only public links.
-
-## Security and operations
+## Also open
 
 - Verify on MySQL 8 (development and the test suite use MariaDB).
 

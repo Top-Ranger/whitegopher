@@ -114,6 +114,7 @@ Variables used only by the test suite are described in the README
 | `/dav/` | CalDAV/CardDAV (Basic auth) |
 | `/.well-known/caldav`, `/.well-known/carddav` | redirect to `/dav/` |
 | `/admin/` | web UI (session login) |
+| `/public/<token>.ics`, `.vcf` | read-only public link of a collection (no login) |
 | `/healthz` | `200 ok` when the database answers, else `503`; unauthenticated |
 | `/metrics` | on the separate `metrics.listen` address only |
 | `/` | redirects to `/admin/` |

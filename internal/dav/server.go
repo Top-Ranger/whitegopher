@@ -9,8 +9,10 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bitflipp/galdav/internal/auth"
+	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
@@ -24,6 +26,8 @@ type Server struct {
 	// is created on first use.
 	Sched *sched.Service
 	once  sync.Once
+	// publicLimiter slows guessing of public-link tokens, per client address.
+	publicLimiter *netx.Limiter
 	// Sharing manages share invitations; if nil, shares are accepted at once.
 	Sharing *sharing.Service
 	// MaxBody caps a request body; 0 means 10 MiB.
@@ -51,6 +55,7 @@ func (s *Server) initDefaults() {
 	if s.Sched == nil {
 		s.Sched = sched.New(s.Store, s.BasePath, nil)
 	}
+	s.publicLimiter = netx.NewLimiter(30, 15*time.Minute)
 	if s.Sharing == nil {
 		s.Sharing = &sharing.Service{Store: s.Store, BasePath: s.BasePath}
 	}
@@ -68,6 +73,8 @@ func (s *Server) Handler() http.Handler {
 	redirect := func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, s.BasePath+"/", http.StatusMovedPermanently)
 	}
+	mux.HandleFunc("GET /public/{token}", s.servePublic)
+	mux.HandleFunc("HEAD /public/{token}", s.servePublic)
 	mux.HandleFunc("/.well-known/caldav", redirect)
 	mux.HandleFunc("/.well-known/carddav", redirect)
 	mux.Handle(s.BasePath+"/", s.Auth.Middleware(http.HandlerFunc(s.serveDAV)))

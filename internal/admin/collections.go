@@ -189,6 +189,8 @@ type collectionData struct {
 	collView
 	URL     string
 	Sharees []store.Sharee
+	// PublicURL is the collection's public link, if it has one.
+	PublicURL string
 }
 
 func (s *Server) collectionPage(w http.ResponseWriter, r *http.Request, c store.Collection, status int, errMsg string) {
@@ -199,10 +201,19 @@ func (s *Server) collectionPage(w http.ResponseWriter, r *http.Request, c store.
 	}
 	sess, _ := s.currentSession(r)
 	sharees, _ := s.Store.Sharees(c.ID)
+	publicURL := ""
+	if tok, err := s.Store.PublicLink(c.ID); err == nil {
+		ext := ".ics"
+		if c.Kind == store.KindAddressBook {
+			ext = ".vcf"
+		}
+		publicURL = s.origin(r) + "/public/" + tok + ext
+	}
 	data := collectionData{
-		collView: collView{Collection: c, Count: n, IsCal: c.Kind == store.KindCalendar},
-		URL:      s.davURL(r) + area + "/" + sess.User.Username + "/" + c.Slug + "/",
-		Sharees:  sharees,
+		collView:  collView{Collection: c, Count: n, IsCal: c.Kind == store.KindCalendar},
+		URL:       s.davURL(r) + area + "/" + sess.User.Username + "/" + c.Slug + "/",
+		Sharees:   sharees,
+		PublicURL: publicURL,
 	}
 	s.render(w, r, "collection", status, page{Title: displayName(c), Nav: "dashboard", Data: data, Error: errMsg})
 }
@@ -311,6 +322,31 @@ func (s *Server) removeShare(w http.ResponseWriter, r *http.Request, sess *sessi
 		err = s.Sharing.Unshare(sess.User, c, target)
 	}
 	if err != nil && !isNotFound(err) {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/collections/"+strconv.FormatInt(c.ID, 10)+"?ok=saved", http.StatusSeeOther)
+}
+
+// setPublicLink creates (or replaces) the read-only public link.
+func (s *Server) setPublicLink(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedCollection(w, r, sess)
+	if !ok {
+		return
+	}
+	if _, err := s.Store.NewPublicLink(c.ID); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/collections/"+strconv.FormatInt(c.ID, 10)+"?ok=saved#public", http.StatusSeeOther)
+}
+
+func (s *Server) removePublicLink(w http.ResponseWriter, r *http.Request, sess *session) {
+	c, ok := s.ownedCollection(w, r, sess)
+	if !ok {
+		return
+	}
+	if err := s.Store.DeletePublicLink(c.ID); err != nil {
 		s.fail(w, err)
 		return
 	}
