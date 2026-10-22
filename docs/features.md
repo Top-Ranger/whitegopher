@@ -90,15 +90,16 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   REPLY. Local recipients get the iTIP message in their inbox **and** the event
   in their default calendar (chosen in the admin UI or with
   `schedule-default-calendar-URL`). Replies update the organizer's copy, and
-  delivery results are recorded as `SCHEDULE-STATUS`. Attendees with
+  delivery results are recorded as `SCHEDULE-STATUS`. A reply to a single
+  instance of a recurring series creates the matching override in the
+  organizer's copy. Attendees with
   `SCHEDULE-AGENT=CLIENT` are left to the client.
 - Attendees without an account get an iMIP email when `smtp` is configured;
   otherwise they are marked `5.3` (no scheduling support).
 - Explicit scheduling: iTIP messages and free-busy requests POSTed to the outbox.
 
 Limits: a REQUEST is sent on every organizer change, not only "significant"
-ones; an attendee's reply to one instance of a series does not create the
-override in the organizer's copy; replies by email
+ones; replies by email
 (inbound iMIP) are not processed; edits made through a read-write share send no
 scheduling messages. The `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.

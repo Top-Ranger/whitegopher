@@ -20,8 +20,6 @@ sharing especially), and the results decide the order of everything below.
 - Send REQUESTs only for *significant* organizer changes (RFC 6638 §3.2.8).
 - Partial `calendar-data` retrieval and `expand` in `calendar-query` /
   `calendar-multiget` (some clients rely on `expand`).
-- Create recurrence overrides in the organizer's copy from an attendee's reply
-  to a single instance of a series.
 - Inbound iMIP: process replies and invitations arriving by email.
 
 ## Sharing

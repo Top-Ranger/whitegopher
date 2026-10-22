@@ -407,3 +407,36 @@ func TestIMIPForExternalAttendees(t *testing.T) {
 		t.Fatalf("cancel mail: %d messages", len(msgs))
 	}
 }
+
+func TestReplyToSingleInstanceCreatesOverride(t *testing.T) {
+	e := newSchedEnv(t, nil)
+	a, b := e.alice, e.bob
+	series := "/dav/calendars/alice/main/series.ics"
+	st, body, _ := a.req("PUT", series, invite("series", "Weekly", "0", "RRULE:FREQ=WEEKLY;COUNT=4\r\n", bobAtt))
+	expect(t, st, 201, body)
+
+	// Bob declines only the second occurrence, by adding an override to his copy.
+	_, mine, _ := b.req("GET", "/dav/calendars/bob/bobcal/series.ics", "")
+	override := "BEGIN:VEVENT\r\nUID:series\r\nDTSTAMP:20260101T000000Z\r\nRECURRENCE-ID:20260317T100000Z\r\n" +
+		"DTSTART:20260317T100000Z\r\nDTEND:20260317T110000Z\r\nSUMMARY:Weekly\r\nSEQUENCE:0\r\n" +
+		"ORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;CN=Bob;PARTSTAT=DECLINED:mailto:bob@example.com\r\nEND:VEVENT\r\n"
+	edited := strings.Replace(mine, "END:VCALENDAR", override+"END:VCALENDAR", 1)
+	st, body, _ = b.req("PUT", "/dav/calendars/bob/bobcal/series.ics", edited)
+	expect(t, st/100, 2, body)
+
+	_, got, _ := a.req("GET", series, "")
+	got = unfold(got)
+	has(t, got, "RECURRENCE-ID:20260317T100000Z", "PARTSTAT=DECLINED")
+	if strings.Count(got, "BEGIN:VEVENT") != 2 {
+		t.Fatalf("want master plus one override:\n%s", got)
+	}
+	// The override carries no recurrence rule of its own, and the series keeps Bob's open answer.
+	i := strings.Index(got, "RECURRENCE-ID")
+	over := got[strings.LastIndex(got[:i], "BEGIN:VEVENT"):]
+	lacks(t, over[:strings.Index(over, "END:VEVENT")], "RRULE")
+	master := got[:strings.Index(got, "END:VEVENT")]
+	has(t, master, "RRULE:FREQ=WEEKLY;COUNT=4", "PARTSTAT=NEEDS-ACTION")
+
+	// The override sits at the second occurrence and keeps its length.
+	has(t, over, "DTSTART:20260317T100000Z", "DTEND:20260317T110000Z")
+}

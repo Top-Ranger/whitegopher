@@ -2,7 +2,9 @@ package sched
 
 import (
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-ical"
 
@@ -170,6 +172,10 @@ func (s *Service) applyReply(organizer store.User, itip *ical.Calendar) error {
 		if sequenceOf(rc) < maxSequence(mine) {
 			continue // stale reply
 		}
+		if o := newOverride(mine, rc); o != nil {
+			cal.Children = append(cal.Children, o)
+			mine = append(mine, o)
+		}
 		rid := ridKey(rc)
 		for _, ra := range rc.Props.Values(ical.PropAttendee) {
 			want := normAddr(ra.Value)
@@ -198,4 +204,121 @@ func (s *Service) applyReply(organizer store.User, itip *ical.Calendar) error {
 		return nil
 	}
 	return s.putRaw(coll, obj.URI, uid, mine[0].Name, encode(cal))
+}
+
+// newOverride returns a new recurrence override for the instance a REPLY
+// answers, when the organizer's copy is a recurring series that has no
+// override for that instance yet and the replier is one of its attendees.
+// Without it an answer to a single instance would be lost.
+func newOverride(mine []*ical.Component, rc *ical.Component) *ical.Component {
+	rid := ridKey(rc)
+	if rid == "" {
+		return nil
+	}
+	var master *ical.Component
+	for _, c := range mine {
+		switch ridKey(c) {
+		case rid:
+			return nil
+		case "":
+			master = c
+		}
+	}
+	if master == nil || (master.Props.Get(ical.PropRecurrenceRule) == nil && master.Props.Get(ical.PropRecurrenceDates) == nil) {
+		return nil
+	}
+	known := false
+	for _, ra := range rc.Props.Values(ical.PropAttendee) {
+		for _, ma := range master.Props.Values(ical.PropAttendee) {
+			known = known || normAddr(ra.Value) == normAddr(ma.Value)
+		}
+	}
+	if !known {
+		return nil
+	}
+
+	o := cloneComp(master)
+	for _, name := range []string{ical.PropRecurrenceRule, ical.PropRecurrenceDates, "EXRULE", ical.PropExceptionDates} {
+		o.Props.Del(name)
+	}
+	ridProp := *rc.Props.Get(ical.PropRecurrenceID)
+	ridProp.Params = cloneParams(ridProp.Params)
+	ridProp.Params.Del("RANGE")
+	setProp(o, ridProp)
+
+	start := rc.Props.Get(ical.PropDateTimeStart)
+	if start == nil {
+		start = &ridProp
+	}
+	dtstart := newProp(ical.PropDateTimeStart, start.Value)
+	dtstart.Params = cloneParams(start.Params)
+	dtstart.Params.Del("RANGE")
+	// The instance's length: the reply's own end if it has one, else the master's.
+	if end := rc.Props.Get(ical.PropDateTimeEnd); end != nil && rc.Props.Get(ical.PropDateTimeStart) != nil {
+		o.Props.Del(ical.PropDuration)
+		e := newProp(ical.PropDateTimeEnd, end.Value)
+		e.Params = cloneParams(end.Params)
+		setProp(o, e)
+	} else if d, ok := componentLength(master); ok {
+		o.Props.Del(ical.PropDateTimeEnd)
+		o.Props.Del(ical.PropDue)
+		setProp(o, newProp(ical.PropDuration, formatDuration(d)))
+	}
+	setProp(o, dtstart)
+	return o
+}
+
+func cloneParams(in ical.Params) ical.Params {
+	out := ical.Params{}
+	for k, v := range in {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+// componentLength returns the length of c from DURATION, or DTEND/DUE minus DTSTART.
+func componentLength(c *ical.Component) (time.Duration, bool) {
+	if p := c.Props.Get(ical.PropDuration); p != nil {
+		if d, err := p.Duration(); err == nil {
+			return d, true
+		}
+	}
+	start := c.Props.Get(ical.PropDateTimeStart)
+	end := c.Props.Get(ical.PropDateTimeEnd)
+	if end == nil {
+		end = c.Props.Get(ical.PropDue)
+	}
+	if start == nil || end == nil {
+		return 0, false
+	}
+	s, err1 := start.DateTime(time.UTC)
+	e, err2 := end.DateTime(time.UTC)
+	if err1 != nil || err2 != nil || e.Before(s) {
+		return 0, false
+	}
+	return e.Sub(s), true
+}
+
+// formatDuration renders d as an RFC 5545 DURATION such as "PT1H30M".
+func formatDuration(d time.Duration) string {
+	secs := int64(d / time.Second)
+	days, secs := secs/86400, secs%86400
+	h, m, s := secs/3600, secs%3600/60, secs%60
+	out := "P"
+	if days > 0 {
+		out += strconv.FormatInt(days, 10) + "D"
+	}
+	if h+m+s > 0 || days == 0 {
+		out += "T"
+		if h > 0 {
+			out += strconv.FormatInt(h, 10) + "H"
+		}
+		if m > 0 {
+			out += strconv.FormatInt(m, 10) + "M"
+		}
+		if s > 0 || h+m == 0 {
+			out += strconv.FormatInt(s, 10) + "S"
+		}
+	}
+	return out
 }
