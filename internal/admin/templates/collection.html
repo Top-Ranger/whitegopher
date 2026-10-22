@@ -1,9 +1,10 @@
 {{define "content"}}
 {{with .Data}}
-<h1>{{if .IsCal}}Calendar{{else}}Address book{{end}}: {{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</h1>
+<a class="back" href="/admin/">← Collections</a>
+<h1>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}} <span class="tag">{{if .IsCal}}calendar{{else}}address book{{end}}</span></h1>
 <section>
-  <p>Address: <code>{{.URL}}</code></p>
-  <p class="muted">{{.Count}} {{if .IsCal}}events/tasks{{else}}contacts{{end}}{{if .IsCal}} · allowed: {{.Components}}{{end}}</p>
+  <p>Address: <code class="copy">{{.URL}}</code></p>
+  <p class="muted">{{.Count}} {{if .IsCal}}items{{else}}contacts{{end}}{{if .IsCal}} · allowed: {{.Components}}{{end}}</p>
 </section>
 <section>
   <h2>Properties</h2>
@@ -12,10 +13,10 @@
     <label>Name <input type="text" name="name" value="{{.DisplayName}}"></label>
     <label>Description <input type="text" name="description" value="{{.Description}}"></label>
     {{if .IsCal}}
-    <label>Colour <input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></label>
-    <label>Sort order <input type="number" name="order" value="{{.SortOrder}}"></label>
+    <label>Colour <input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"><span class="hint">Hex, e.g. #2f6fed.</span></label>
+    <label>Sort order <input type="number" name="order" value="{{.SortOrder}}"><span class="hint">Lower numbers come first in your apps.</span></label>
     {{end}}
-    <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/">Back</a></div>
+    <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/">Cancel</a></div>
   </form>
 </section>
 <section>
@@ -23,22 +24,22 @@
   <p class="muted">Other users on this server can see this {{if .IsCal}}calendar{{else}}address book{{end}} in their apps. It appears automatically (or after they accept, if the server asks for that); they can leave it at any time.</p>
   {{if .Sharees}}
   <table>
-    <tr><th>User</th><th>Access</th><th></th></tr>
+    <tr><th>User</th><th>Access</th><th class="actions"></th></tr>
     {{range .Sharees}}
     <tr>
       <td>{{.Username}}{{if .UserDisplay}} <span class="muted">({{.UserDisplay}})</span>{{end}}</td>
       <td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}{{if eq .State "pending"}} <span class="tag">waiting for them to accept</span>{{else if eq .State "declined"}} <span class="tag">declined</span>{{end}}</td>
-      <td>
+      <td class="actions">
         <form method="post" action="/admin/collections/{{$.Data.ID}}/shares/{{.UserID}}/remove">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <button class="link" type="submit">Stop sharing</button>
+          <button class="danger small" type="submit">Stop sharing</button>
         </form>
       </td>
     </tr>
     {{end}}
   </table>
   {{else}}<p class="muted">Not shared.</p>{{end}}
-  <form method="post" action="/admin/collections/{{.ID}}/shares" class="stack" style="margin-top:1rem">
+  <form method="post" action="/admin/collections/{{.ID}}/shares" class="stack">
     <input type="hidden" name="csrf" value="{{$.CSRF}}">
     <label>Share with (username) <input type="text" name="username" required autocomplete="off"></label>
     <label>Access
@@ -47,14 +48,14 @@
         <option value="readwrite">Can edit</option>
       </select>
     </label>
-    <div><button type="submit" class="secondary">Share</button></div>
+    <div><button type="submit">Share</button></div>
   </form>
 </section>
 <section id="public">
   <h2>Public link</h2>
   {{if .PublicURL}}
   <p>Anyone with this address can read everything in this {{if .IsCal}}calendar{{else}}address book{{end}}, without signing in{{if .IsCal}} (subscribe to it from a calendar app or website){{end}}. That includes attendees and notes.</p>
-  <p><code>{{.PublicURL}}</code></p>
+  <p><code class="copy">{{.PublicURL}}</code></p>
   <div class="row">
     <form method="post" action="/admin/collections/{{.ID}}/public"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">New address</button></form>
     <form method="post" action="/admin/collections/{{.ID}}/public/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="danger">Turn off</button></form>
@@ -62,11 +63,11 @@
   <p class="muted">A new address stops the old one from working.</p>
   {{else}}
   <p class="muted">Off. A public link is a read-only address anyone can open without a login, e.g. to publish a calendar.</p>
-  <form method="post" action="/admin/collections/{{.ID}}/public"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">Create public link</button></form>
+  <form method="post" action="/admin/collections/{{.ID}}/public"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">Create public link</button></form>
   {{end}}
 </section>
-<section>
-  <h2>Delete</h2>
+<section class="danger-zone">
+  <h2>Delete {{if .IsCal}}calendar{{else}}address book{{end}}</h2>
   <p>This permanently deletes the {{if .IsCal}}calendar{{else}}address book{{end}} and everything in it.</p>
   <form method="post" action="/admin/collections/{{.ID}}/delete" class="stack">
     <input type="hidden" name="csrf" value="{{$.CSRF}}">

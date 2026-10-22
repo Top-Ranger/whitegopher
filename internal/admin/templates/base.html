@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · galdav</title>
 <link rel="stylesheet" href="/admin/static/admin.css">
+<link rel="icon" href="/admin/static/galdav.svg" type="image/svg+xml">
 </head>
 <body>
 {{if .User.ID}}
 <header><div class="bar">
-  <span class="brand">galdav</span>
-  <nav>
-    <a href="/admin/"{{if eq .Nav "dashboard"}} class="active"{{end}}>Collections</a>
-    {{if .User.IsAdmin}}<a href="/admin/users"{{if eq .Nav "users"}} class="active"{{end}}>Users</a>{{end}}
-    <a href="/admin/account"{{if eq .Nav "account"}} class="active"{{end}}>Account</a>
+  <a class="brand" href="/admin/">galdav</a>
+  <nav aria-label="Main">
+    <a href="/admin/"{{if eq .Nav "dashboard"}} class="active" aria-current="page"{{end}}>Collections</a>
+    {{if .User.IsAdmin}}<a href="/admin/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}}>Users</a>{{end}}
+    <a href="/admin/account"{{if eq .Nav "account"}} class="active" aria-current="page"{{end}}>Account</a>
   </nav>
   <form method="post" action="/admin/logout" class="row">
     <input type="hidden" name="csrf" value="{{.CSRF}}">

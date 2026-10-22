@@ -1,9 +1,32 @@
 {{define "content"}}
 <h1>Collections</h1>
+
+{{with .Data}}{{if .Invites}}
+<section>
+  <h2>Invitations</h2>
+  <p class="muted">Other users want to share these with you. They appear in your apps once you accept.</p>
+  <table>
+    <tr><th>Name</th><th>Type</th><th class="hide">From</th><th>Access</th><th class="actions"></th></tr>
+    {{range .Invites}}
+    <tr>
+      <td>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.Slug}}{{end}}</td>
+      <td>{{if eq .Collection.Kind "calendar"}}Calendar{{else}}Address book{{end}}</td>
+      <td class="hide">{{.OwnerName}}</td>
+      <td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td>
+      <td class="actions"><div class="row">
+        <form method="post" action="/admin/invites/{{.ID}}/accept"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="small">Accept</button></form>
+        <form method="post" action="/admin/invites/{{.ID}}/decline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary small">Decline</button></form>
+      </div></td>
+    </tr>
+    {{end}}
+  </table>
+</section>
+{{end}}{{end}}
+
 <section>
   <h2>Connect your devices</h2>
   <p>Use this server address in your calendar or contacts app, with your username <code>{{.User.Username}}</code>:</p>
-  <p><code>{{.DAVURL}}</code></p>
+  <p><code class="copy">{{.DAVURL}}</code></p>
 </section>
 
 {{with .Data}}
@@ -11,97 +34,73 @@
   <h2>Calendars</h2>
   {{if .Calendars}}
   <table>
-    <tr><th>Name</th><th class="hide">URL name</th><th>Events</th><th></th></tr>
+    <tr><th>Name</th><th class="hide">URL name</th><th>Items</th><th class="actions"></th></tr>
     {{range .Calendars}}
     <tr>
       <td>{{if .Color}}<svg class="swatch" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="{{.Color}}"/></svg>{{end}}{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td>
       <td class="hide"><code>{{.Slug}}</code></td>
       <td>{{.Count}}</td>
-      <td><a href="/admin/collections/{{.ID}}">Edit</a></td>
+      <td class="actions"><a href="/admin/collections/{{.ID}}">Edit</a></td>
     </tr>
     {{end}}
   </table>
   {{else}}<p class="muted">No calendars yet.</p>{{end}}
+  <details class="fold"{{if $.Error}} open{{end}}>
+    <summary class="btn secondary">New calendar</summary>
+    <form method="post" action="/admin/collections" class="stack">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="kind" value="calendar">
+      <label>Name <input type="text" name="name" required></label>
+      <label>Description <input type="text" name="description"></label>
+      <label>Colour <input type="text" name="color" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"><span class="hint">Hex, e.g. #2f6fed.</span></label>
+      <div class="checks">
+        <label class="inline"><input type="checkbox" name="comp_VEVENT" value="1" checked> Events</label>
+        <label class="inline"><input type="checkbox" name="comp_VTODO" value="1" checked> Tasks</label>
+        <label class="inline"><input type="checkbox" name="comp_VJOURNAL" value="1"> Journal</label>
+      </div>
+      <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
+      <div><button type="submit">Create calendar</button></div>
+    </form>
+  </details>
 </section>
 
 <section>
   <h2>Address books</h2>
   {{if .AddressBooks}}
   <table>
-    <tr><th>Name</th><th class="hide">URL name</th><th>Contacts</th><th></th></tr>
+    <tr><th>Name</th><th class="hide">URL name</th><th>Contacts</th><th class="actions"></th></tr>
     {{range .AddressBooks}}
     <tr>
       <td>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td>
       <td class="hide"><code>{{.Slug}}</code></td>
       <td>{{.Count}}</td>
-      <td><a href="/admin/collections/{{.ID}}">Edit</a></td>
+      <td class="actions"><a href="/admin/collections/{{.ID}}">Edit</a></td>
     </tr>
     {{end}}
   </table>
   {{else}}<p class="muted">No address books yet.</p>{{end}}
+  <details class="fold"{{if $.Error}} open{{end}}>
+    <summary class="btn secondary">New address book</summary>
+    <form method="post" action="/admin/collections" class="stack">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="kind" value="addressbook">
+      <label>Name <input type="text" name="name" required></label>
+      <label>Description <input type="text" name="description"></label>
+      <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
+      <div><button type="submit">Create address book</button></div>
+    </form>
+  </details>
 </section>
-{{end}}
 
-{{with .Data}}{{if .Invites}}
-<section>
-  <h2>Invitations</h2>
-  <p class="muted">Other users want to share these with you. They appear in your apps once you accept.</p>
-  <table>
-    <tr><th>Name</th><th>Type</th><th class="hide">From</th><th>Access</th><th></th></tr>
-    {{range .Invites}}
-    <tr>
-      <td>{{if .Collection.DisplayName}}{{.Collection.DisplayName}}{{else}}{{.Collection.Slug}}{{end}}</td>
-      <td>{{if eq .Collection.Kind "calendar"}}Calendar{{else}}Address book{{end}}</td>
-      <td class="hide">{{.OwnerName}}</td>
-      <td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td>
-      <td class="row">
-        <form method="post" action="/admin/invites/{{.ID}}/accept"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit">Accept</button></form>
-        <form method="post" action="/admin/invites/{{.ID}}/decline"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button type="submit" class="secondary">Decline</button></form>
-      </td>
-    </tr>
-    {{end}}
-  </table>
-</section>
-{{end}}{{end}}
-
-{{with .Data}}{{if or .SharedCalendars .SharedBooks}}
+{{if or .SharedCalendars .SharedBooks}}
 <section>
   <h2>Shared with you</h2>
   <table>
-    <tr><th>Name</th><th>Type</th><th class="hide">Owner</th><th>Access</th><th></th></tr>
-    {{range .SharedCalendars}}<tr><td>{{if .Color}}<svg class="swatch" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="{{.Color}}"/></svg>{{end}}{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td><td>Calendar</td><td class="hide">{{.OwnerName}}</td><td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td><td><a href="/admin/shared/{{.ShareID}}">Manage</a></td></tr>{{end}}
-    {{range .SharedBooks}}<tr><td>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td><td>Address book</td><td class="hide">{{.OwnerName}}</td><td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td><td><a href="/admin/shared/{{.ShareID}}">Manage</a></td></tr>{{end}}
+    <tr><th>Name</th><th>Type</th><th class="hide">Owner</th><th>Access</th><th class="actions"></th></tr>
+    {{range .SharedCalendars}}<tr><td>{{if .Color}}<svg class="swatch" width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="{{.Color}}"/></svg>{{end}}{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td><td>Calendar</td><td class="hide">{{.OwnerName}}</td><td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td><td class="actions"><a href="/admin/shared/{{.ShareID}}">Edit</a></td></tr>{{end}}
+    {{range .SharedBooks}}<tr><td>{{if .DisplayName}}{{.DisplayName}}{{else}}{{.Slug}}{{end}}</td><td>Address book</td><td class="hide">{{.OwnerName}}</td><td>{{if eq .Access "readwrite"}}can edit{{else}}read only{{end}}</td><td class="actions"><a href="/admin/shared/{{.ShareID}}">Edit</a></td></tr>{{end}}
   </table>
 </section>
-{{end}}{{end}}
-
-<section>
-  <h2>New calendar</h2>
-  <form method="post" action="/admin/collections" class="stack">
-    <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <input type="hidden" name="kind" value="calendar">
-    <label>Name <input type="text" name="name" required></label>
-    <label>Description <input type="text" name="description"></label>
-    <label>Colour <input type="text" name="color" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></label>
-    <div class="row">
-      <label class="inline"><input type="checkbox" name="comp_VEVENT" value="1" checked> Events</label>
-      <label class="inline"><input type="checkbox" name="comp_VTODO" value="1" checked> Tasks</label>
-      <label class="inline"><input type="checkbox" name="comp_VJOURNAL" value="1"> Journal</label>
-    </div>
-    <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
-    <div><button type="submit">Create calendar</button></div>
-  </form>
-</section>
-
-<section>
-  <h2>New address book</h2>
-  <form method="post" action="/admin/collections" class="stack">
-    <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <input type="hidden" name="kind" value="addressbook">
-    <label>Name <input type="text" name="name" required></label>
-    <label>Description <input type="text" name="description"></label>
-    <label>URL name (optional) <input type="text" name="slug" placeholder="generated from the name"></label>
-    <div><button type="submit">Create address book</button></div>
-  </form>
-</section>
+{{end}}
+{{end}}
 {{end}}

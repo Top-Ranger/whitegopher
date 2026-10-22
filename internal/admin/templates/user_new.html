@@ -1,4 +1,5 @@
 {{define "content"}}
+<a class="back" href="/admin/users">← Users</a>
 <h1>New user</h1>
 <section>
   <form method="post" action="/admin/users" class="stack">
@@ -6,7 +7,7 @@
     <label>Username <input type="text" name="username" value="{{with .Data}}{{.Username}}{{end}}" required autocomplete="off"></label>
     <label>Display name <input type="text" name="display_name" value="{{with .Data}}{{.DisplayName}}{{end}}"></label>
     <label>Email <input type="email" name="email" value="{{with .Data}}{{.Email}}{{end}}"></label>
-    <label>Password <input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+    <label>Password <input type="password" name="password" required minlength="8" autocomplete="new-password"><span class="hint">At least 8 characters.</span></label>
     <label class="inline"><input type="checkbox" name="is_admin" value="1"{{with .Data}}{{if .IsAdmin}} checked{{end}}{{end}}> Administrator</label>
     <div class="row"><button type="submit">Create user</button> <a class="btn secondary" href="/admin/users">Cancel</a></div>
   </form>
