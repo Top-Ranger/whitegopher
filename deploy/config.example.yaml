@@ -40,6 +40,9 @@ login_limit:
 
 admin:
   enabled: true
+  # Public address of this server. Together with smtp (below) it turns on
+  # "Forgot your password?" by email.
+  # base_url: "https://cal.example.com"
 
 # Optional: email invitations to attendees who have no account here.
 # The password goes into GALDAV_SMTP_PASSWORD.

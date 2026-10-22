@@ -1,0 +1,11 @@
+{{define "content"}}
+<div class="card narrow">
+  <h1>Reset password</h1>
+  <p class="muted">Enter your username or email address. If the account has an email address, we send a link to choose a new password.</p>
+  <form method="post" action="/admin/forgot" class="stack">
+    <label>Username or email <input type="text" name="identifier" autocomplete="username" required autofocus></label>
+    <button type="submit">Send reset link</button>
+  </form>
+  <p><a href="/admin/login">Back to sign in</a></p>
+</div>
+{{end}}

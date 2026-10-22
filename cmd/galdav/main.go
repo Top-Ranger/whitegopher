@@ -140,8 +140,10 @@ func serve(cfg config.Config, st *store.Store) error {
 	limiter := netx.NewLimiter(cfg.LoginLimit.Failures, cfg.LoginLimit.Window)
 	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm, Proxies: netx.Proxies(proxies), Limiter: limiter}
 	var mailer sched.Mailer
+	var textMailer admin.TextMailer
 	if cfg.SMTP.Host != "" {
-		mailer = &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
+		smtp := &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
+		mailer, textMailer = smtp, smtp
 	}
 	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: sched.New(st, basePath, mailer)}
 
@@ -158,7 +160,7 @@ func serve(cfg config.Config, st *store.Store) error {
 		io.WriteString(w, "ok\n")
 	})
 	if cfg.Admin.Enabled {
-		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter}).Handler()
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL}).Handler()
 		if err != nil {
 			return err
 		}

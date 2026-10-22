@@ -1,0 +1,12 @@
+{{define "content"}}
+<div class="card narrow">
+  <h1>Choose a new password</h1>
+  <p class="muted">This signs you out everywhere, and your devices need the new password. Two-factor sign-in, if you use it, stays on.</p>
+  <form method="post" action="/admin/reset" class="stack">
+    <input type="hidden" name="token" value="{{.Data}}">
+    <label>New password <input type="password" name="password" autocomplete="new-password" required minlength="8" autofocus></label>
+    <label>Repeat new password <input type="password" name="password2" autocomplete="new-password" required minlength="8"></label>
+    <button type="submit">Change password</button>
+  </form>
+</div>
+{{end}}

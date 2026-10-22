@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/netip"
+	"net/url"
 	"os"
 	"time"
 
@@ -86,6 +87,10 @@ type SMTP struct {
 type Admin struct {
 	// Enabled serves the web UI under /admin/.
 	Enabled bool `yaml:"enabled"`
+	// BaseURL is the public address of this server, e.g.
+	// "https://cal.example.com". With smtp configured it enables password
+	// reset by email (links in the message point here).
+	BaseURL string `yaml:"base_url"`
 }
 
 type DB struct {
@@ -173,6 +178,11 @@ func (c Config) Validate() error {
 	}
 	if c.LoginLimit.Failures < 0 || (c.LoginLimit.Failures > 0 && c.LoginLimit.Window <= 0) {
 		return fmt.Errorf("login_limit: failures must be >= 0 and window positive")
+	}
+	if c.Admin.BaseURL != "" {
+		if u, err := url.Parse(c.Admin.BaseURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			return fmt.Errorf("admin.base_url %q must be an http(s) URL such as https://cal.example.com", c.Admin.BaseURL)
+		}
 	}
 	if c.Log.Format != "" && c.Log.Format != "text" && c.Log.Format != "json" {
 		return fmt.Errorf("log.format %q must be \"text\" or \"json\"", c.Log.Format)

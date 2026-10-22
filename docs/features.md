@@ -139,11 +139,16 @@ are plain writes.
 - Users manage their calendars, address books, shares, default calendar for
   invitations and their password; administrators also create, edit, reset and
   delete users (the last administrator is protected).
+- Password reset by email ("Forgot your password?" on the sign-in page) when
+  `smtp` and `admin.base_url` are set: a one-hour, single-use link; the same
+  answer whether or not the account exists; at most 10 requests per client
+  address and 3 per account per hour. It ends all sessions, and two-factor, if
+  on, stays on.
 - Protections: HttpOnly SameSite=Lax cookies (Secure behind HTTPS), CSRF
   tokens, cross-origin POST rejection, strict content-security policy, login
   rate limiting per client address (proxy-aware).
 
-Limits: no password reset by email, no audit log, no
+Limits: no audit log, no
 administrator view of other users' collections, English only.
 
 ## Importing from Baikal

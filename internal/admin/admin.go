@@ -46,11 +46,19 @@ type Server struct {
 	// Limiter throttles failed logins per client address. Defaults to 10
 	// failures per 15 minutes.
 	Limiter *netx.Limiter
+	// Mailer and BaseURL (the public address of this server, e.g.
+	// "https://cal.example.com") enable password reset by email; without both
+	// the feature is off.
+	Mailer  TextMailer
+	BaseURL string
 
 	pages map[string]*template.Template
 	// codeLimiter slows guessing of second-factor codes once the password is
 	// known, per account.
 	codeLimiter *netx.Limiter
+	// resetLimiter bounds reset requests per client address, userResetLimiter
+	// per account (so nobody's inbox can be flooded).
+	resetLimiter, userResetLimiter *netx.Limiter
 }
 
 type session struct {
@@ -70,6 +78,8 @@ type page struct {
 	DAVURL  string
 	Data    any
 	IsSetup bool
+	// CanReset offers "forgot password" on the sign-in page.
+	CanReset bool
 }
 
 var flashes = map[string]string{
@@ -77,6 +87,7 @@ var flashes = map[string]string{
 	"created":  "Created.",
 	"deleted":  "Deleted.",
 	"password": "Password changed.",
+	"reset":    "Password changed. Sign in with the new one.",
 }
 
 var funcs = template.FuncMap{
@@ -89,6 +100,8 @@ func (s *Server) init() error {
 		s.Limiter = netx.NewLimiter(10, 15*time.Minute)
 	}
 	s.codeLimiter = netx.NewLimiter(5, 15*time.Minute)
+	s.resetLimiter = netx.NewLimiter(10, time.Hour)
+	s.userResetLimiter = netx.NewLimiter(3, time.Hour)
 	s.pages = map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
@@ -122,6 +135,10 @@ func (s *Server) Handler() (http.Handler, error) {
 
 	mux.HandleFunc("GET /admin/login", s.loginForm)
 	mux.HandleFunc("POST /admin/login", s.login)
+	mux.HandleFunc("GET /admin/forgot", s.forgotForm)
+	mux.HandleFunc("POST /admin/forgot", s.forgot)
+	mux.HandleFunc("GET /admin/reset", s.resetForm)
+	mux.HandleFunc("POST /admin/reset", s.reset)
 	mux.HandleFunc("GET /admin/setup", s.setupForm)
 	mux.HandleFunc("POST /admin/setup", s.setup)
 	mux.HandleFunc("POST /admin/logout", s.authed(s.logout))
@@ -287,6 +304,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, sta
 		p.Flash = flashes[r.URL.Query().Get("ok")]
 	}
 	p.DAVURL = s.davURL(r)
+	p.CanReset = s.resetEnabled()
 	t, ok := s.pages[name]
 	if !ok {
 		http.Error(w, "internal error", http.StatusInternalServerError)

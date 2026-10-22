@@ -29,6 +29,7 @@ db:
 
 admin:
   enabled: true          # serve the web UI under /admin/
+  base_url: ""           # public URL, e.g. "https://cal.example.com"; with smtp, enables password reset by email
 
 proxy:
   trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe
@@ -74,6 +75,10 @@ smtp:                    # optional iMIP email for attendees without an account
   cookie flag. If your
   proxy is on another host, add its address; if it is missing, all users appear
   to come from the proxy and share one rate limit.
+- **`admin.base_url`** is only used to build the link in password-reset emails
+  (the `Host` header is never trusted for that). Password reset by email is on
+  when both `smtp` and `admin.base_url` are set; users need an email address on
+  their account.
 - **`log.access`** writes one line per request (method, path without query,
   status, bytes, duration in ms, client address, user). `/healthz` is left out.
   Passwords and request bodies are never logged.

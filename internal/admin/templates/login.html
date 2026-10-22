@@ -9,5 +9,6 @@
     {{if .IsSetup}}<label>Repeat password <input type="password" name="password2" autocomplete="new-password" required></label>{{end}}
     <button type="submit">{{if .IsSetup}}Create account{{else}}Sign in{{end}}</button>
   </form>
+  {{if and .CanReset (not .IsSetup)}}<p><a href="/admin/forgot">Forgot your password?</a></p>{{end}}
 </div>
 {{end}}

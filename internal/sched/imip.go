@@ -56,6 +56,41 @@ func (m *SMTP) Send(msg Message) error {
 	return smtp.SendMail(addr, auth, from.Address, []string{msg.To}, body)
 }
 
+// SendText sends a plain-text message, e.g. a password-reset link.
+func (m *SMTP) SendText(to, subject, text string) error {
+	from, err := mail.ParseAddress(m.From)
+	if err != nil {
+		return fmt.Errorf("smtp.from: %w", err)
+	}
+	rcpt, err := mail.ParseAddress(to)
+	if err != nil {
+		return fmt.Errorf("recipient: %w", err)
+	}
+	rnd := make([]byte, 12)
+	if _, err := rand.Read(rnd); err != nil {
+		return err
+	}
+	var b bytes.Buffer
+	h := func(k, v string) { b.WriteString(k + ": " + header(v) + "\r\n") }
+	h("From", from.String())
+	h("To", rcpt.Address)
+	h("Subject", (&mimeWord{}).encode(subject))
+	h("Date", time.Now().Format(time.RFC1123Z))
+	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@galdav>")
+	h("MIME-Version", "1.0")
+	h("Content-Type", "text/plain; charset=UTF-8")
+	h("Content-Transfer-Encoding", "quoted-printable")
+	b.WriteString("\r\n")
+	w := quotedprintable.NewWriter(&b)
+	w.Write([]byte(strings.ReplaceAll(text, "\n", "\r\n")))
+	w.Close()
+	var auth smtp.Auth
+	if m.Username != "" {
+		auth = smtp.PlainAuth("", m.Username, m.Password, m.Host)
+	}
+	return smtp.SendMail(net.JoinHostPort(m.Host, fmt.Sprint(m.Port)), auth, from.Address, []string{rcpt.Address}, b.Bytes())
+}
+
 func header(v string) string {
 	return strings.NewReplacer("\r", " ", "\n", " ").Replace(v)
 }
