@@ -124,7 +124,7 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   invitations, updates, cancellations and replies go out as the owner.
 - Explicit scheduling: iTIP messages and free-busy requests POSTed to the outbox.
 
-Limits: The `SCHEDULE-STATUS` codes follow my reading of the RFCs
+Limits: the `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.
 
 ## Free-busy
