@@ -240,7 +240,7 @@ for I8/I9 the external address. Use **timed events in the future.**
 |---|---|---|
 | **A1** | Change alice's password in the admin UI. | Her clients prompt for the new password and resume syncing after entering it; none keep failing silently. |
 | **A2** | Reset bob's password as administrator. | Same as A1 for bob. |
-| **A3** | Check whether the client authenticated with **Digest or Basic** (traffic capture) and that both work: temporarily test with a client or `curl --digest`. | No difference in behaviour. |
+| **A3** | Check that the client authenticates with **Basic** over TLS (traffic capture). | Works; no `Digest` challenge is offered. |
 | **A4** | Sign in to the admin UI at the same time as clients are syncing. | Independent; neither disturbs the other. |
 | **A5** | Delete bob's account while his client is syncing. | The client reports authentication failure; no crash, no data touched in alice's account. |
 
@@ -501,7 +501,7 @@ When something fails, this tells you where in galdav to look first.
 | Symptom | Where to look |
 |---|---|
 | Account cannot be set up / discovery fails | Proxy forwarding of `/.well-known/*`; `internal/dav/server.go` (`serveDAV`, `resolve`/`propfind`), `internal/dav/props.go` (`principalRes`: `calendar-home-set`, `schedule-*-URL`). Check whether the client requested a path galdav returns `404` for. |
-| Repeated `401` | `internal/auth` (Digest nonce/`uri` checks, realm); wrong password; changed realm; proxy altering the `Authorization` header or the request URI. |
+| Repeated `401` | `internal/auth` (Basic credentials, realm); wrong password; proxy altering the `Authorization` header or the request URI. |
 | `403`/`409`/`412` on PUT | `internal/dav/handlers.go` `put` and `internal/index/index.go` (validation: `METHOD`, UID, component type, `valid-calendar-data`); preconditions on `If-Match`. The error body names the precondition. |
 | Items missing/duplicated after sync | `changes` table; `sync-collection` in `internal/dav/report.go`; `PutObject`/`DeleteObject` in `internal/store/objects.go`. |
 | Wrong times / recurrences | `internal/index/index.go` (`Span`, `occurrenceBounds`), `internal/dav/calfilter.go` (`overlaps`), `internal/sched/freebusy.go` (`busyInstances`). Compare the stored object (`q`) with what the client sent (capture). |

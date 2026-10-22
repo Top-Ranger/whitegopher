@@ -18,7 +18,8 @@ import (
 	"github.com/bitflipp/galdav/internal/store"
 )
 
-// HA1 returns md5(user:realm:password), the Digest-auth secret.
+// HA1 returns md5(user:realm:password), the hash Baikal stores. It is only
+// used to verify imported accounts once; see Verify.
 func HA1(user, realm, password string) string {
 	sum := md5.Sum([]byte(user + ":" + realm + ":" + password))
 	return hex.EncodeToString(sum[:])
@@ -65,8 +66,6 @@ func verifyArgon(phc, password string) bool {
 type Authenticator struct {
 	Store *store.Store
 	Realm string
-
-	digest digestState
 }
 
 // Verify checks a password. Accounts that only have an imported HA1 are
@@ -88,16 +87,9 @@ func (a *Authenticator) Verify(username, password string) (store.User, bool) {
 		return u, false
 	}
 	if h, err := HashPassword(password); err == nil {
-		_ = a.Store.SetPasswordHash(u.ID, h) // best-effort upgrade
+		_ = a.Store.SetPasswordHash(u.ID, h) // best-effort upgrade; also clears the HA1
 	}
 	return u, true
-}
-
-// NewCredentials derives both stored password forms for user: an argon2id
-// hash and the Digest HA1 for the configured realm.
-func (a *Authenticator) NewCredentials(user, password string) (hash, ha1 string, err error) {
-	hash, err = HashPassword(password)
-	return hash, HA1(user, a.Realm, password), err
 }
 
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)
@@ -114,33 +106,16 @@ func UserFrom(ctx context.Context) (store.User, bool) {
 	return u, ok
 }
 
-// Middleware requires HTTP Digest or Basic credentials. Digest only works
-// for accounts that have a stored HA1.
+// Middleware requires HTTP Basic credentials.
 func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		allow := func(u store.User) {
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
-		}
-		scheme, params, _ := strings.Cut(r.Header.Get("Authorization"), " ")
-		stale := false
-		switch {
-		case strings.EqualFold(scheme, "Digest"):
-			a.digest.init()
-			u, ok, st := a.verifyDigest(r, params)
-			if ok {
-				allow(u)
+		if name, pass, ok := r.BasicAuth(); ok {
+			if u, good := a.Verify(name, pass); good {
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 				return
 			}
-			stale = st
-		case strings.EqualFold(scheme, "Basic"):
-			if name, pass, ok := r.BasicAuth(); ok {
-				if u, good := a.Verify(name, pass); good {
-					allow(u)
-					return
-				}
-			}
 		}
-		a.digest.init()
-		a.challenge(w, stale)
+		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm=%q, charset="UTF-8"`, a.Realm))
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	})
 }

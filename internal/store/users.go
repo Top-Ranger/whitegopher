@@ -12,7 +12,9 @@ type User struct {
 	Username    string
 	DisplayName string
 	// Email is stored lower-case; it is the user's calendar-user address.
-	Email        string
+	Email string
+	// DigestHA1 is the md5 hash imported from Baikal. It only lets the user
+	// sign in once; the first login replaces it with PasswordHash.
 	DigestHA1    string
 	PasswordHash string
 	IsAdmin      bool
@@ -62,7 +64,7 @@ func (s *Store) UserByEmail(email string) (User, error) {
 }
 
 func (s *Store) SetPasswordHash(id int64, hash string) error {
-	_, err := s.DB.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, id)
+	_, err := s.DB.Exec(`UPDATE users SET password_hash = ?, digest_ha1 = '' WHERE id = ?`, hash, id)
 	return err
 }
 
@@ -141,15 +143,15 @@ func (s *Store) UpdateUser(u User) error {
 	return err
 }
 
-// SetCredentials replaces both password representations and ends the
-// user's sessions.
-func (s *Store) SetCredentials(id int64, hash, ha1 string) error {
+// SetCredentials replaces the password hash (dropping any imported HA1) and
+// ends the user's sessions.
+func (s *Store) SetCredentials(id int64, hash string) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE users SET password_hash = ?, digest_ha1 = ? WHERE id = ?`, hash, ha1, id); err != nil {
+	if _, err := tx.Exec(`UPDATE users SET password_hash = ?, digest_ha1 = '' WHERE id = ?`, hash, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM sessions WHERE user_id = ?`, id); err != nil {

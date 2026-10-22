@@ -73,12 +73,12 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		redo("Passwords do not match.")
 		return
 	}
-	hash, ha1, err := s.Auth.NewCredentials(name, pass)
+	hash, err := auth.HashPassword(pass)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	id, err := s.Store.CreateUserIfNone(store.User{Username: name, PasswordHash: hash, DigestHA1: ha1, IsAdmin: true})
+	id, err := s.Store.CreateUserIfNone(store.User{Username: name, PasswordHash: hash, IsAdmin: true})
 	if err != nil {
 		if err == store.ErrExists {
 			http.Redirect(w, r, "/admin/login", http.StatusSeeOther)

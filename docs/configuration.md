@@ -42,11 +42,11 @@ smtp:                    # optional iMIP email for attendees without an account
 
 ### Things worth knowing
 
-- **`realm` is permanent.** It is mixed into every stored Digest hash
-  (`md5(user:realm:password)`). Changing it breaks Digest logins until each
-  user's password is reset. The default `BaikalDAV` is also what Baikal uses,
-  which is what makes imported password hashes work. A new installation that
-  will never import from Baikal may choose its own value before creating users.
+- **`realm`** is the HTTP Basic realm. The default `BaikalDAV` is also what
+  Baikal uses, which is what makes imported password hashes
+  (`md5(user:realm:password)`) work: it must match until each imported user
+  has signed in once. After that, or if you never import from Baikal, it can
+  be changed freely.
 - **`db.dsn`** must name an existing database; galdav creates and migrates the
   tables itself. Special characters (`/`, `@`) in the password break the DSN
   parser, so generate one with `openssl rand -hex 24`. Unix sockets work:
@@ -74,7 +74,7 @@ Variables used only by the test suite are described in the README
 
 | Path | Purpose |
 |---|---|
-| `/dav/` | CalDAV/CardDAV (Basic or Digest auth) |
+| `/dav/` | CalDAV/CardDAV (Basic auth) |
 | `/.well-known/caldav`, `/.well-known/carddav` | redirect to `/dav/` |
 | `/admin/` | web UI (session login) |
 | `/healthz` | `200 ok` when the database answers, else `503`; unauthenticated |

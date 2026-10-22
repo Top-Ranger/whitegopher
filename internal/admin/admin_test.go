@@ -153,10 +153,10 @@ func TestSetupLoginAndCollections(t *testing.T) {
 	if err != nil || r2.StatusCode != 207 {
 		t.Fatalf("DAV sees the UI-created calendar: %v %v", err, r2)
 	}
-	// Digest HA1 was stored, so Digest-only clients can authenticate.
+	// New accounts get no Digest HA1.
 	u, _ := e.st.UserByName("root")
-	if u.DigestHA1 != auth.HA1("root", "R", "hunter2hunter2") {
-		t.Fatal("digest hash missing")
+	if u.DigestHA1 != "" {
+		t.Fatal("HA1 stored for a new account")
 	}
 
 	// Edit and delete.
@@ -177,9 +177,8 @@ func TestSetupLoginAndCollections(t *testing.T) {
 
 func TestSecurity(t *testing.T) {
 	e := newEnv(t)
-	a := &auth.Authenticator{Store: e.st, Realm: "R"}
-	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
-	e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true})
+	hash, _ := auth.HashPassword("hunter2hunter2")
+	e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, IsAdmin: true})
 
 	// Anonymous requests go to login.
 	resp, b := e.do(e.cli, "GET", "/admin/users", nil)
@@ -227,8 +226,8 @@ func TestSecurity(t *testing.T) {
 func TestUserManagement(t *testing.T) {
 	e := newEnv(t)
 	a := &auth.Authenticator{Store: e.st, Realm: "R"}
-	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
-	rootID, _ := e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true})
+	hash, _ := auth.HashPassword("hunter2hunter2")
+	rootID, _ := e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, IsAdmin: true})
 	login := func(name, pw string) *http.Client {
 		c := newClient()
 		resp, b := e.do(c, "POST", "/admin/login", url.Values{"username": {name}, "password": {pw}})
@@ -278,9 +277,6 @@ func TestUserManagement(t *testing.T) {
 		t.Fatal("old password still valid")
 	}
 	login("bob", "new-password1")
-	if u, _ := e.st.UserByName("bob"); u.DigestHA1 != auth.HA1("bob", "R", "new-password1") {
-		t.Fatal("digest hash not updated")
-	}
 
 	// Admin edits, resets and deletes; last-admin and self protections hold.
 	bid := strconv.FormatInt(bob.ID, 10)
@@ -308,9 +304,8 @@ func TestUserManagement(t *testing.T) {
 
 func TestEmailUniquenessAndDefaultCalendar(t *testing.T) {
 	e := newEnv(t)
-	a := &auth.Authenticator{Store: e.st, Realm: "R"}
-	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
-	rootID, _ := e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true, Email: "Root@Example.com"})
+	hash, _ := auth.HashPassword("hunter2hunter2")
+	rootID, _ := e.st.CreateUser(store.User{Username: "root", PasswordHash: hash, IsAdmin: true, Email: "Root@Example.com"})
 	c := newClient()
 	resp, b := e.do(c, "POST", "/admin/login", url.Values{"username": {"root"}, "password": {"hunter2hunter2"}})
 	status(t, resp, 303, b)
@@ -348,10 +343,9 @@ func TestEmailUniquenessAndDefaultCalendar(t *testing.T) {
 
 func TestSharingUI(t *testing.T) {
 	e := newEnv(t)
-	a := &auth.Authenticator{Store: e.st, Realm: "R"}
 	mk := func(name string, admin bool) int64 {
-		hash, ha1, _ := a.NewCredentials(name, name+"-password")
-		id, _ := e.st.CreateUser(store.User{Username: name, PasswordHash: hash, DigestHA1: ha1, IsAdmin: admin})
+		hash, _ := auth.HashPassword(name + "-password")
+		id, _ := e.st.CreateUser(store.User{Username: name, PasswordHash: hash, IsAdmin: admin})
 		return id
 	}
 	mk("root", true)
@@ -443,8 +437,8 @@ func TestSharingUI(t *testing.T) {
 func TestTrustedProxies(t *testing.T) {
 	st := storetest.New(t)
 	a := &auth.Authenticator{Store: st, Realm: "R"}
-	hash, ha1, _ := a.NewCredentials("root", "hunter2hunter2")
-	st.CreateUser(store.User{Username: "root", PasswordHash: hash, DigestHA1: ha1, IsAdmin: true})
+	hash, _ := auth.HashPassword("hunter2hunter2")
+	st.CreateUser(store.User{Username: "root", PasswordHash: hash, IsAdmin: true})
 	build := func(trusted ...string) *httptest.Server {
 		var ps []netip.Prefix
 		for _, p := range trusted {

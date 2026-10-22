@@ -14,8 +14,8 @@ See [docs/features.md](docs/features.md) and the
 
 ## What it does
 
-Calendars (events, tasks) and address books over CalDAV/CardDAV with Basic and
-Digest auth; sync (`sync-collection`), queries and free-busy; invitations and
+Calendars (events, tasks) and address books over CalDAV/CardDAV with Basic auth;
+sync (`sync-collection`), queries and free-busy; invitations and
 replies between users, with optional email to outsiders (scheduling, RFC 6638);
 sharing between users, read-only or read-write; a web admin UI; and a one-time
 importer for Baikal databases.
@@ -50,7 +50,7 @@ For a real installation follow [docs/deployment.md](docs/deployment.md).
 cmd/galdav/         CLI: serve, useradd, import-baikal
 internal/config/    YAML config and environment overrides
 internal/store/     MySQL/MariaDB store, embedded migrations
-internal/auth/      password hashing, Basic/Digest middleware
+internal/auth/      password hashing, Basic auth middleware
 internal/dav/       WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
 internal/sched/     free-busy, iTIP scheduling, iMIP email
 internal/index/     object validation and occurrence indexing

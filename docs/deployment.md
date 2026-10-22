@@ -69,9 +69,9 @@ sudoedit /etc/galdav/galdav.env      # put the real database password into GALDA
 Review `/etc/galdav/config.yaml`; the defaults in `deploy/config.example.yaml`
 are right for a proxy on the same host. Two decisions to make **now**:
 
-1. **`realm`** is baked into every Digest hash and can never change afterwards.
-   Pick a value (e.g. your domain) before creating users. If you will import
-   from Baikal, use `BaikalDAV` instead (see [section 8](#8-migrating-from-baikal)).
+1. **`realm`** is the HTTP Basic realm. Pick a value (e.g. your domain). If
+   you will import from Baikal, use `BaikalDAV` instead until the imported
+   users have signed in once (see [section 8](#8-migrating-from-baikal)).
 2. **`proxy.trusted`**: if the proxy runs on another host, add its address.
 
 Full option list: [configuration.md](configuration.md).
@@ -192,8 +192,7 @@ settings. A calendar named `inbox` or `outbox` is renamed (reserved names).
 mysqldump --single-transaction galdav | zstd > galdav-$(date +%F).sql.zst
 ```
 
-Back up `/etc/galdav/` as well (it holds the realm: restoring a database
-without the matching realm breaks Digest logins). Test a restore occasionally:
+Back up `/etc/galdav/` as well. Test a restore occasionally:
 load the dump into an empty database, point a second instance at it, and sign
 in. The `sessions` table can be skipped; users just sign in again.
 

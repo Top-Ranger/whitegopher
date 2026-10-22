@@ -25,11 +25,12 @@ or the `/dav/` URL); objects are limited to 10 MiB (compiled in).
 
 ## Authentication
 
-- HTTP Basic and Digest (MD5, `qop=auth`, signed expiring nonces, replay
-  protection). Passwords are stored as argon2id plus the Digest HA1.
+- HTTP Basic only (use TLS). Passwords are stored as argon2id. Digest is not
+  supported. A password hash imported from Baikal is kept only until that
+  user's first login, which replaces it with argon2id.
 - Users only reach their own namespace (and collections shared with them).
 
-Limits: Digest hashes depend on `realm`, which must never change. DAV logins
+Limits: DAV logins
 are not rate limited (the admin UI's are): use `fail2ban` or the reverse proxy.
 No LDAP/OIDC, no app passwords, no two-factor authentication.
 

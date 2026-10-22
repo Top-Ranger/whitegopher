@@ -77,9 +77,9 @@ func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request, sess 
 
 // setPassword stores new credentials (which also ends the user's sessions).
 func (s *Server) setPassword(w http.ResponseWriter, u store.User, pw string) bool {
-	hash, ha1, err := s.Auth.NewCredentials(u.Username, pw)
+	hash, err := auth.HashPassword(pw)
 	if err == nil {
-		err = s.Store.SetCredentials(u.ID, hash, ha1)
+		err = s.Store.SetCredentials(u.ID, hash)
 	}
 	if err != nil {
 		s.fail(w, err)
@@ -133,11 +133,11 @@ func (s *Server) createUser(w http.ResponseWriter, r *http.Request, sess *sessio
 		redo("That email address belongs to another user.")
 		return
 	}
-	hash, ha1, err := s.Auth.NewCredentials(name, pw)
+	hash, err := auth.HashPassword(pw)
 	if err == nil {
 		_, err = s.Store.CreateUser(store.User{
 			Username: name, DisplayName: strings.TrimSpace(r.PostFormValue("display_name")),
-			Email: strings.TrimSpace(r.PostFormValue("email")), PasswordHash: hash, DigestHA1: ha1,
+			Email: strings.TrimSpace(r.PostFormValue("email")), PasswordHash: hash,
 			IsAdmin: r.PostFormValue("is_admin") != "",
 		})
 	}

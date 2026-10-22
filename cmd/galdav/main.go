@@ -157,7 +157,6 @@ func useradd(cfg config.Config, st *store.Store, args []string) error {
 		Username:     name,
 		Email:        *email,
 		PasswordHash: hash,
-		DigestHA1:    auth.HA1(name, cfg.Realm, pw),
 		IsAdmin:      *admin,
 	})
 	if errors.Is(err, store.ErrExists) {

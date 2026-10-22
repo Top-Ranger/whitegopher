@@ -13,8 +13,9 @@ import (
 
 type Config struct {
 	Listen string `yaml:"listen"`
-	// Realm is used for HTTP auth. It is part of Digest HA1 hashes, so it
-	// must match the old server's realm when importing its password hashes.
+	// Realm is the HTTP Basic auth realm. It is also part of the HA1 hashes
+	// imported from Baikal, so it must match the old server's realm when
+	// importing its password hashes.
 	Realm string `yaml:"realm"`
 	DB    DB     `yaml:"db"`
 	// BasePath is the URL prefix of the DAV tree.
