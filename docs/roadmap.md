@@ -15,9 +15,6 @@ sharing especially), and the results decide the order of everything below.
 
 ## Protocol completeness
 
-- `Schedule-Tag` and `If-Schedule-Tag-Match`, so clients can tell
-  scheduling-significant changes from cosmetic ones.
-- Send REQUESTs only for *significant* organizer changes (RFC 6638 §3.2.8).
 - Partial `calendar-data` retrieval and `expand` in `calendar-query` /
   `calendar-multiget` (some clients rely on `expand`).
 - Inbound iMIP: process replies and invitations arriving by email.

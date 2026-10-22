@@ -219,6 +219,9 @@ func (s *Server) get(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	}
 	h := w.Header()
 	h.Set("ETag", `"`+o.ETag+`"`)
+	if o.ScheduleTag != "" {
+		h.Set("Schedule-Tag", `"`+o.ScheduleTag+`"`)
+	}
 	h.Set("Content-Type", contentType(c, o))
 	h.Set("Content-Length", strconv.Itoa(len(o.Data)))
 	if r.Method != http.MethodHead {
@@ -286,10 +289,28 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		Component: p.Component, FirstOcc: p.First, LastOcc: p.Last,
 	}
 	var oldData []byte
+	var prev store.Object
 	if isCal && c.Access == "" { // implicit scheduling acts for the owner only
-		if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
-			oldData = prev.Data
+		if p, err := s.Store.GetObject(c.ID, t.uri); err == nil {
+			prev, oldData = p, p.Data
 		}
+	}
+	// Schedule-Tag (RFC 6638): kept unless this write is a scheduling-
+	// significant change to the organizer's copy (or the object is new to
+	// scheduling), cleared when the object stops being a scheduling object.
+	cond.KeepScheduleTag = true
+	if isCal && c.Access == "" {
+		scheduling, significant := s.sched().Classify(u, oldData, data)
+		switch {
+		case !scheduling:
+			cond.KeepScheduleTag = false
+		case oldData == nil || prev.ScheduleTag == "" || significant:
+			o.ScheduleTag = sched.NewScheduleTag()
+			cond.KeepScheduleTag = false
+		}
+	}
+	if h := r.Header.Get("If-Schedule-Tag-Match"); h != "" {
+		cond.IfScheduleTag = etagMatcher(h)
 	}
 	created, err := s.Store.PutObject(o, cond)
 	var conflict *store.UIDConflictError
@@ -312,17 +333,24 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	if isCal && c.Access == "" {
 		// Implicit scheduling. It may rewrite the stored copy to record
 		// delivery status; then the ETag we would report is stale, so omit it.
-		if rewritten := s.sched().ProcessPut(u, oldData, data); rewritten != nil {
+		noReply := strings.EqualFold(strings.TrimSpace(r.Header.Get("Schedule-Reply")), "F")
+		if rewritten := s.sched().ProcessPut(u, oldData, data, noReply); rewritten != nil {
 			o.Data, o.ETag = rewritten, index.ETag(rewritten)
 			if p, bad := index.Calendar(rewritten, strings.Split(c.Components, ",")); bad == "" {
 				o.FirstOcc, o.LastOcc = p.First, p.Last
 			}
-			if _, err := s.Store.PutObject(o, store.PutCond{}); err != nil {
+			if _, err := s.Store.PutObject(o, store.PutCond{KeepScheduleTag: true}); err != nil {
 				s.fail(w, r, err)
 				return
 			}
 			o.ETag = ""
 		}
+	}
+	if tag := o.ScheduleTag; tag != "" || (cond.KeepScheduleTag && prev.ScheduleTag != "") {
+		if tag == "" {
+			tag = prev.ScheduleTag
+		}
+		w.Header().Set("Schedule-Tag", `"`+tag+`"`)
 	}
 	if o.ETag != "" {
 		w.Header().Set("ETag", `"`+o.ETag+`"`)
@@ -419,9 +447,15 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 			m = etagMatcher(h)
 		}
 		var oldData []byte
-		if c.Kind == store.KindCalendar && c.Special == "" && c.Access == "" {
+		if c.Kind == store.KindCalendar && c.Special == "" {
 			if prev, err := s.Store.GetObject(c.ID, t.uri); err == nil {
-				oldData = prev.Data
+				if h := r.Header.Get("If-Schedule-Tag-Match"); h != "" && !etagMatcher(h)(prev.ScheduleTag) {
+					w.WriteHeader(http.StatusPreconditionFailed)
+					return
+				}
+				if c.Access == "" {
+					oldData = prev.Data
+				}
 			}
 		}
 		err := s.Store.DeleteObject(c.ID, t.uri, m)
@@ -437,7 +471,7 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 			return
 		}
 		if oldData != nil {
-			s.sched().ProcessDelete(u, oldData)
+			s.sched().ProcessDelete(u, oldData, strings.EqualFold(strings.TrimSpace(r.Header.Get("Schedule-Reply")), "F"))
 		}
 	default:
 		http.Error(w, "cannot delete this resource", http.StatusForbidden)

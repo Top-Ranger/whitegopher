@@ -22,6 +22,8 @@ type Object struct {
 	Data         []byte // nil when loaded by ListObjects
 	Size         int64
 	Component    string
+	// ScheduleTag is set on scheduling object resources only (RFC 6638).
+	ScheduleTag string
 	// FirstOcc and LastOcc are unix seconds bounding the object's
 	// occurrences. NULL means unknown or unbounded: queries must treat such
 	// objects as candidates.
@@ -37,6 +39,12 @@ type PutCond struct {
 	IfMatch func(etag string) bool
 	// AllowDupUID skips the UID-uniqueness check (used when importing).
 	AllowDupUID bool
+	// IfScheduleTag, when non-nil, requires the current Schedule-Tag to
+	// satisfy it (If-Schedule-Tag-Match).
+	IfScheduleTag func(tag string) bool
+	// KeepScheduleTag leaves an existing object's Schedule-Tag as it is
+	// instead of taking o.ScheduleTag.
+	KeepScheduleTag bool
 }
 
 // PutObject creates or replaces o and logs a change. created reports
@@ -54,8 +62,8 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 	if err := tx.QueryRow(`SELECT id FROM collections WHERE id = ?`+forUpdate, o.CollectionID).Scan(&id); err != nil {
 		return false, err
 	}
-	var oldETag string
-	err = tx.QueryRow(`SELECT etag FROM objects WHERE collection_id = ? AND uri = ?`+forUpdate, o.CollectionID, o.URI).Scan(&oldETag)
+	var oldETag, oldTag string
+	err = tx.QueryRow(`SELECT etag, schedule_tag FROM objects WHERE collection_id = ? AND uri = ?`+forUpdate, o.CollectionID, o.URI).Scan(&oldETag, &oldTag)
 	exists := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, err
@@ -64,6 +72,10 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 		return false, ErrPrecondition
 	}
 	if cond.IfMatch != nil && (!exists || !cond.IfMatch(oldETag)) {
+		return false, ErrPrecondition
+	}
+
+	if cond.IfScheduleTag != nil && (!exists || !cond.IfScheduleTag(oldTag)) {
 		return false, ErrPrecondition
 	}
 
@@ -80,12 +92,13 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 	}
 
 	_, err = tx.Exec(
-		`INSERT INTO objects (collection_id, uri, uid, etag, data, component, first_occ, last_occ)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO objects (collection_id, uri, uid, etag, data, component, first_occ, last_occ, schedule_tag)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON DUPLICATE KEY UPDATE
 		   uid = VALUES(uid), etag = VALUES(etag), data = VALUES(data), component = VALUES(component),
-		   first_occ = VALUES(first_occ), last_occ = VALUES(last_occ), updated_at = CURRENT_TIMESTAMP`,
-		o.CollectionID, o.URI, o.UID, o.ETag, o.Data, o.Component, o.FirstOcc, o.LastOcc)
+		   first_occ = VALUES(first_occ), last_occ = VALUES(last_occ),
+		   schedule_tag = IF(?, schedule_tag, VALUES(schedule_tag)), updated_at = CURRENT_TIMESTAMP`,
+		o.CollectionID, o.URI, o.UID, o.ETag, o.Data, o.Component, o.FirstOcc, o.LastOcc, o.ScheduleTag, cond.KeepScheduleTag)
 	if err != nil {
 		return false, fmt.Errorf("put object: %w", err)
 	}
@@ -95,11 +108,11 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 	return !exists, tx.Commit()
 }
 
-const objMeta = `id, collection_id, uri, uid, etag, length(data), component, first_occ, last_occ`
+const objMeta = `id, collection_id, uri, uid, etag, length(data), component, first_occ, last_occ, schedule_tag`
 
 func scanObject(sc interface{ Scan(...any) error }, withData bool) (Object, error) {
 	var o Object
-	dest := []any{&o.ID, &o.CollectionID, &o.URI, &o.UID, &o.ETag, &o.Size, &o.Component, &o.FirstOcc, &o.LastOcc}
+	dest := []any{&o.ID, &o.CollectionID, &o.URI, &o.UID, &o.ETag, &o.Size, &o.Component, &o.FirstOcc, &o.LastOcc, &o.ScheduleTag}
 	if withData {
 		dest = append(dest, &o.Data)
 	}

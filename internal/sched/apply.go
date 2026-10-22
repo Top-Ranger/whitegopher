@@ -46,7 +46,7 @@ func (s *Service) applyRequest(to store.User, itip *ical.Calendar) error {
 		if old, derr := decode(obj.Data); derr == nil {
 			carryOver(old, nc, isMe)
 		}
-		return s.putRaw(coll, obj.URI, uid, first.Name, encode(nc))
+		return s.putScheduled(coll, obj.URI, uid, first.Name, encode(nc))
 	}
 	if !errors.Is(err, store.ErrNotFound) {
 		return err
@@ -62,7 +62,7 @@ func (s *Service) applyRequest(to store.User, itip *ical.Calendar) error {
 	if existing, gerr := s.Store.GetObject(coll.ID, uri); gerr == nil && existing.UID != uid {
 		uri = "itip-" + uri // another object already owns the plain name
 	}
-	return s.putRaw(coll, uri, uid, first.Name, encode(nc))
+	return s.putScheduled(coll, uri, uid, first.Name, encode(nc))
 }
 
 // carryOver keeps the recipient's local state when an update arrives:
@@ -148,7 +148,7 @@ func (s *Service) applyCancel(to store.User, itip *ical.Calendar) error {
 			}
 		}
 	}
-	return s.putRaw(coll, obj.URI, uid, mine[0].Name, encode(cal))
+	return s.putScheduled(coll, obj.URI, uid, mine[0].Name, encode(cal))
 }
 
 // applyReply records an attendee's answer in the organizer's calendar copy.
@@ -203,7 +203,7 @@ func (s *Service) applyReply(organizer store.User, itip *ical.Calendar) error {
 	if !changed {
 		return nil
 	}
-	return s.putRaw(coll, obj.URI, uid, mine[0].Name, encode(cal))
+	return s.putScheduled(coll, obj.URI, uid, mine[0].Name, encode(cal))
 }
 
 // newOverride returns a new recurrence override for the instance a REPLY

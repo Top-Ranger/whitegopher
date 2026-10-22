@@ -450,7 +450,8 @@ and sharing.
 - Tasks appear in **Reminders** (the CT Tasks list) and need the calendar
   object type `VTODO` (R6, W7).
 - Notice whether Apple adds `If-Schedule-Tag-Match`/`Schedule-Tag` headers when
-  editing invitations (galdav ignores them; any `412` in the log is a finding).
+  editing invitations (galdav honours them; a `412` after an organizer edit is expected, a `412` on
+  a plain edit is a finding).
 - **Invitations (I2, I13):** Apple shows invitations in the Calendar app's
   *Inbox* and as events needing action; check both, and check that the reply
   arrives (I3).

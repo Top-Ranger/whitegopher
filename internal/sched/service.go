@@ -172,7 +172,9 @@ func partstat(c *ical.Component, isMe func(string) bool) (string, bool) {
 // ProcessPut runs implicit scheduling after u stored newData, replacing
 // oldData (nil for a new object). It returns replacement data when the
 // stored copy must be rewritten (to record SCHEDULE-STATUS), else nil.
-func (s *Service) ProcessPut(u store.User, oldData, newData []byte) []byte {
+// noReply (Schedule-Reply: F) stops an attendee's change from being sent to
+// the organizer.
+func (s *Service) ProcessPut(u store.User, oldData, newData []byte, noReply bool) []byte {
 	nw := parseSched(newData)
 	if nw == nil {
 		return nil
@@ -187,7 +189,9 @@ func (s *Service) ProcessPut(u store.User, oldData, newData []byte) []byte {
 	if s.isUser(nw.organizer.Value, u) {
 		return s.organizerPut(u, old, nw)
 	}
-	s.attendeePut(u, old, nw)
+	if !noReply {
+		s.attendeePut(u, old, nw)
+	}
 	return nil
 }
 
@@ -206,7 +210,27 @@ func (s *Service) organizerPut(u store.User, old, nw *schedObject) []byte {
 	newAddrs, _ := sendable(nw)
 	status := map[string]string{}
 
-	if len(newAddrs) > 0 {
+	// Attendees who are already invited hear about a change only if it is a
+	// significant one (RFC 6638 3.2.8), so a typo fix in the title does not
+	// send a new email. Local attendees are always updated: that is silent
+	// for them and keeps their copy current. New attendees are always invited.
+	significant := old == nil || significantChange(old, nw)
+	var oldAddrs []string
+	if old != nil {
+		oldAddrs, _ = sendable(old)
+	}
+	invited := map[string]bool{}
+	for _, a := range oldAddrs {
+		invited[a] = true
+	}
+	var notify []string
+	for _, a := range newAddrs {
+		if _, local := s.lookup(a); significant || !invited[a] || local {
+			notify = append(notify, a)
+		}
+	}
+
+	if len(notify) > 0 {
 		req := newCalendar("REQUEST")
 		for _, c := range nw.cal.Children {
 			cc := cloneComp(c)
@@ -215,12 +239,11 @@ func (s *Service) organizerPut(u store.User, old, nw *schedObject) []byte {
 			}
 			req.Children = append(req.Children, cc)
 		}
-		for _, a := range newAddrs {
+		for _, a := range notify {
 			status[a] = s.deliver(orgAddr, a, "REQUEST", req)
 		}
 	}
 	if old != nil {
-		oldAddrs, _ := sendable(old)
 		keep := map[string]bool{}
 		for _, a := range newAddrs {
 			keep[a] = true
@@ -346,7 +369,7 @@ func (s *Service) sendReply(u store.User, o *schedObject, comps []*ical.Componen
 }
 
 // ProcessDelete runs implicit scheduling after u deleted a calendar object.
-func (s *Service) ProcessDelete(u store.User, oldData []byte) {
+func (s *Service) ProcessDelete(u store.User, oldData []byte, noReply bool) {
 	old := parseSched(oldData)
 	if old == nil {
 		return
@@ -363,7 +386,7 @@ func (s *Service) ProcessDelete(u store.User, oldData []byte) {
 		}
 		return
 	}
-	if !scheduleAgentServer(old.organizer) {
+	if noReply || !scheduleAgentServer(old.organizer) {
 		return
 	}
 	isMe := func(a string) bool { return s.isUser(a, u) }
@@ -464,6 +487,18 @@ func (s *Service) deliverLocal(to store.User, fromAddr, method string, itip *ica
 // putRaw stores data without validation, indexing it when it parses.
 func (s *Service) putRaw(c store.Collection, uri, uid, component string, data []byte) error {
 	o := store.Object{CollectionID: c.ID, URI: uri, UID: uid, ETag: index.ETag(data), Data: data, Component: component}
+	if p, bad := index.Calendar(data, strings.Split(c.Components, ",")); bad == "" {
+		o.FirstOcc, o.LastOcc = p.First, p.Last
+	}
+	_, err := s.Store.PutObject(o, store.PutCond{AllowDupUID: true})
+	return err
+}
+
+// putScheduled stores a scheduling object changed by the server (an
+// invitation, cancellation or reply was applied), which gives it a new
+// Schedule-Tag.
+func (s *Service) putScheduled(c store.Collection, uri, uid, component string, data []byte) error {
+	o := store.Object{CollectionID: c.ID, URI: uri, UID: uid, ETag: index.ETag(data), Data: data, Component: component, ScheduleTag: NewScheduleTag()}
 	if p, bad := index.Calendar(data, strings.Split(c.Components, ",")); bad == "" {
 		o.FirstOcc, o.LastOcc = p.First, p.Last
 	}

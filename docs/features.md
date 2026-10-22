@@ -72,8 +72,8 @@ concurrent uploads can overshoot slightly) and do not stop scheduling from
 delivering invitations into a full mailbox; no partial `calendar-data` retrieval or `expand`; a time-range query
 matches a moved recurrence instance at its original time too (rare false
 positive); times with non-IANA `TZID`s (e.g. Windows zone names) are treated as
-unindexed, which keeps queries correct but slower; no `Schedule-Tag` /
-`If-Schedule-Tag-Match`; only `text/calendar` and `text/vcard` are served.
+unindexed, which keeps queries correct but slower;
+only `text/calendar` and `text/vcard` are served.
 
 ## Scheduling (RFC 6638 / iTIP)
 
@@ -96,10 +96,19 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   `SCHEDULE-AGENT=CLIENT` are left to the client.
 - Attendees without an account get an iMIP email when `smtp` is configured;
   otherwise they are marked `5.3` (no scheduling support).
+- `Schedule-Tag` (header and `CALDAV:schedule-tag` property) on scheduling
+  objects, and `If-Schedule-Tag-Match` on `PUT`/`DELETE` (`412` on mismatch).
+  The tag changes when the organizer makes a *significant* change (start, end,
+  duration, due, recurrence rule/dates/exceptions, status, location, a higher
+  `SEQUENCE`, or an instance added or removed) and whenever the server applies
+  a REQUEST, CANCEL or REPLY to a copy. `Schedule-Reply: F` keeps an
+  attendee's change or deletion from being sent to the organizer.
+- Attendees who are already invited are mailed again (iMIP) only after a
+  significant change or when newly added; local attendees' copies are always
+  updated, silently. Other edits (title, notes, alarms) do not resend.
 - Explicit scheduling: iTIP messages and free-busy requests POSTed to the outbox.
 
-Limits: a REQUEST is sent on every organizer change, not only "significant"
-ones; replies by email
+Limits: replies by email
 (inbound iMIP) are not processed; edits made through a read-write share send no
 scheduling messages. The `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.

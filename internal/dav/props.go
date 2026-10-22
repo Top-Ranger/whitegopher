@@ -241,7 +241,7 @@ func (s *Server) objectRes(u store.User, c store.Collection, o store.Object) res
 	if c.OwnerName != "" {
 		owner = c.OwnerName
 	}
-	return resource{href: s.collHref(areaOf(c.Kind), u.Username, c.Slug) + o.URI, props: map[xml.Name]string{
+	r := resource{href: s.collHref(areaOf(c.Kind), u.Username, c.Slug) + o.URI, props: map[xml.Name]string{
 		dav("resourcetype"):               "",
 		dav("getetag"):                    `"` + o.ETag + `"`,
 		dav("getcontenttype"):             esc(contentType(c, o)),
@@ -249,6 +249,10 @@ func (s *Server) objectRes(u store.User, c store.Collection, o store.Object) res
 		dav("owner"):                      hrefXML(s.principalHref(owner)),
 		dav("current-user-privilege-set"): privFor(c),
 	}}
+	if o.ScheduleTag != "" {
+		r.props[cal("schedule-tag")] = `"` + o.ScheduleTag + `"`
+	}
+	return r
 }
 
 // applyProp sets or removes one live-settable collection property. known
