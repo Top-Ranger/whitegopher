@@ -35,8 +35,7 @@ sharing especially), and the results decide the order of everything below.
 
 ## Security and operations
 
-- Verify on MySQL 8 (development used MariaDB) and with multiple instances
-  sharing one database.
+- Verify on MySQL 8 (development and the test suite use MariaDB).
 
 ## Not planned
 

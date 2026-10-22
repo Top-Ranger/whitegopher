@@ -172,4 +172,4 @@ inbox and Baikal's own settings are not imported.
 - Trusted-proxy handling for `X-Forwarded-For` / `X-Forwarded-Proto`.
 
 Limits: no built-in TLS (use a reverse proxy), no clustering guarantees beyond what the database gives
-(several instances behind one database should work, but are untested).
+(several instances behind one database are covered by a test of concurrent writes through two instances; failed-login counts and metrics are per process, and only one instance should run during an upgrade).
