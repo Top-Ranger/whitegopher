@@ -37,8 +37,6 @@ sharing especially), and the results decide the order of everything below.
 
 - App passwords (per-device credentials) and optional two-factor sign-in for
   the admin UI; password reset by email.
-- Metrics endpoint and structured access log.
-- A `version` command and release builds.
 - Verify on MySQL 8 (development used MariaDB) and with multiple instances
   sharing one database.
 

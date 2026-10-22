@@ -11,6 +11,7 @@ galdav [-config FILE] <command>
 | Command | Purpose |
 |---|---|
 | `serve` | run the server |
+| `version` (or `-version`) | print the version and exit; needs no config or database |
 | `useradd [-admin] [-email ADDRESS] NAME` | create a user; prompts for the password (hidden, twice), or reads one line from stdin when piped; at least 8 characters |
 | `import-baikal [-dry-run] SQLITE_FILE` | import from a Baikal SQLite database |
 | `import-baikal [-dry-run] -mysql DSN` | import from a Baikal MySQL/MariaDB database |
@@ -31,6 +32,13 @@ admin:
 
 proxy:
   trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe
+
+log:
+  format: text           # "text" or "json"
+  access: false          # one structured log line per HTTP request
+
+metrics:
+  listen: ""             # e.g. "127.0.0.1:9100" to serve /metrics there; empty = off
 
 limits:
   max_request_mib: 10    # largest request body, hence the largest single object
@@ -66,6 +74,13 @@ smtp:                    # optional iMIP email for attendees without an account
   cookie flag. If your
   proxy is on another host, add its address; if it is missing, all users appear
   to come from the proxy and share one rate limit.
+- **`log.access`** writes one line per request (method, path without query,
+  status, bytes, duration in ms, client address, user). `/healthz` is left out.
+  Passwords and request bodies are never logged.
+- **`metrics.listen`** starts a second, **unauthenticated** listener serving
+  Prometheus metrics at `/metrics`: request counts by method and status class,
+  a latency histogram, failed/blocked logins, database pool gauges, uptime and
+  build info. Bind it to loopback or a private interface.
 - **`base_path`** changes where clients must connect; `/.well-known/*` redirects
   follow it.
 
@@ -87,4 +102,5 @@ Variables used only by the test suite are described in the README
 | `/.well-known/caldav`, `/.well-known/carddav` | redirect to `/dav/` |
 | `/admin/` | web UI (session login) |
 | `/healthz` | `200 ok` when the database answers, else `503`; unauthenticated |
+| `/metrics` | on the separate `metrics.listen` address only |
 | `/` | redirects to `/admin/` |

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bitflipp/galdav/internal/auth"
+	"github.com/bitflipp/galdav/internal/obs"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -25,6 +26,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ip := s.clientIP(r)
 	if !s.Limiter.Allowed(ip) {
 		slog.Warn("login blocked", "via", "admin", "ip", ip)
+		obs.LoginsBlocked.Inc()
 		w.Header().Set("Retry-After", "900")
 		s.render(w, r, "login", http.StatusTooManyRequests, page{Title: "Sign in", Error: "Too many failed attempts. Try again later."})
 		return
@@ -33,6 +35,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	u, ok := s.Auth.Verify(name, pass)
 	if !ok {
 		s.Limiter.Fail(ip)
+		obs.LoginFailures.Inc()
 		slog.Warn("login failed", "via", "admin", "user", name, "ip", ip)
 		s.render(w, r, "login", http.StatusUnauthorized, page{Title: "Sign in", Error: "Wrong username or password."})
 		return

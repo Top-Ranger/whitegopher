@@ -35,6 +35,9 @@ CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o galdav ./cmd/galdav
 sudo install -m 0755 galdav /usr/local/bin/galdav
 ```
 
+`make build` does the same with the version stamped in; `galdav version`
+shows it. Tagged releases publish ready-made archives (`make release`).
+
 The result is a ~15 MB statically linked executable with the web UI embedded.
 Cross-compile with `GOOS`/`GOARCH` if you build on another machine.
 
@@ -207,15 +210,18 @@ Schema migrations run automatically at startup and are forward-only, so the
 backup is also your way back. Run **one** instance during an upgrade.
 
 **Monitoring.** Poll `GET /healthz` (`200 ok`, or `503` when the database is
-unreachable). Watch `journalctl -u galdav` for errors. Disk growth is the
+unreachable). Watch `journalctl -u galdav` for errors. For Prometheus, set
+`metrics.listen` to a loopback or private address and scrape `/metrics`. Disk growth is the
 database: object data plus the change log used for sync.
 
 **Maintenance.** The scheduling inbox is not pruned automatically; clients
 usually delete processed items. Deleting a user removes their collections,
 shares and sessions.
 
-**Logs and privacy.** galdav logs startup, shutdown and errors, not requests;
-use the proxy's access log if you need request logs.
+**Logs and privacy.** By default galdav logs startup, shutdown, errors and
+failed logins, not requests. Set `log.access: true` for one structured line per
+request (path without query string, never bodies or passwords), or use the
+proxy's access log.
 
 ## Security checklist
 

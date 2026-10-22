@@ -51,6 +51,8 @@ cmd/galdav/         CLI: serve, useradd, import-baikal
 internal/config/    YAML config and environment overrides
 internal/store/     MySQL/MariaDB store, embedded migrations
 internal/auth/      password hashing, Basic auth middleware
+internal/netx/      trusted proxies, client address, login rate limiter
+internal/obs/       access log and Prometheus metrics
 internal/dav/       WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
 internal/sched/     free-busy, iTIP scheduling, iMIP email
 internal/index/     object validation and occurrence indexing

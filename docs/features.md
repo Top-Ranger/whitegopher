@@ -148,9 +148,12 @@ inbox and Baikal's own settings are not imported.
 - MySQL/MariaDB only; the schema is created and migrated automatically
   (forward-only). Pure Go: a static binary built with `CGO_ENABLED=0`.
 - `GET /healthz` for monitoring, graceful shutdown on SIGTERM/SIGINT, logs on
-  stderr (journald-friendly).
+  stderr (journald-friendly), as text or JSON.
+- Optional structured access log (`log.access`) and Prometheus metrics on a
+  separate listener (`metrics.listen`).
+- `galdav version`; `make release` builds static archives for Linux
+  (amd64/arm64/arm), macOS and FreeBSD with checksums.
 - Trusted-proxy handling for `X-Forwarded-For` / `X-Forwarded-Proto`.
 
-Limits: no built-in TLS (use a reverse proxy), no metrics endpoint, no
-structured access log, no clustering guarantees beyond what the database gives
+Limits: no built-in TLS (use a reverse proxy), no clustering guarantees beyond what the database gives
 (several instances behind one database should work, but are untested).

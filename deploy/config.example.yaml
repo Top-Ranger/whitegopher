@@ -17,6 +17,15 @@ realm: "galdav"
 proxy:
   trusted: ["127.0.0.1", "::1"]
 
+# Logging: format "text" or "json"; access: true adds one line per request.
+# log:
+#   format: text
+#   access: false
+
+# Prometheus metrics on a separate, unauthenticated listener (off by default).
+# metrics:
+#   listen: "127.0.0.1:9100"
+
 # Largest request body (and so object), and the default per-user storage quota
 # (0 = unlimited; administrators can set a quota per user in the admin UI).
 limits:

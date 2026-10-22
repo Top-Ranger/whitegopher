@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/argon2"
 
 	"github.com/bitflipp/galdav/internal/netx"
+	"github.com/bitflipp/galdav/internal/obs"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -120,6 +121,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		ip := a.Proxies.ClientIP(r)
 		if !a.Limiter.Allowed(ip) {
 			slog.Warn("login blocked", "via", "dav", "ip", ip)
+			obs.LoginsBlocked.Inc()
 			w.Header().Set("Retry-After", "900")
 			http.Error(w, "too many failed login attempts", http.StatusTooManyRequests)
 			return
@@ -128,10 +130,12 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			u, good := a.Verify(name, pass)
 			if good {
 				a.Limiter.Reset(ip)
+				obs.SetUser(r.Context(), u.Username)
 				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 				return
 			}
 			a.Limiter.Fail(ip)
+			obs.LoginFailures.Inc()
 			slog.Warn("login failed", "via", "dav", "user", name, "ip", ip)
 		}
 		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm=%q, charset="UTF-8"`, a.Realm))

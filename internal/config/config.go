@@ -25,12 +25,30 @@ type Config struct {
 	// SMTP, when Host is set, delivers invitations to attendees who have no
 	// account here, as iMIP email.
 	SMTP SMTP `yaml:"smtp"`
+	// Log configures log output.
+	Log Log `yaml:"log"`
+	// Metrics exposes Prometheus metrics on a separate listener.
+	Metrics Metrics `yaml:"metrics"`
 	// Limits bounds request sizes and per-user storage.
 	Limits Limits `yaml:"limits"`
 	// LoginLimit throttles failed logins (DAV and admin UI) per client address.
 	LoginLimit LoginLimit `yaml:"login_limit"`
 	// Proxy lists reverse proxies whose X-Forwarded-* headers are believed.
 	Proxy Proxy `yaml:"proxy"`
+}
+
+type Log struct {
+	// Format is "text" (default) or "json".
+	Format string `yaml:"format"`
+	// Access logs one line per HTTP request.
+	Access bool `yaml:"access"`
+}
+
+type Metrics struct {
+	// Listen is the address of the metrics listener, e.g. "127.0.0.1:9100".
+	// Empty disables metrics. Keep it off public interfaces: it is not
+	// authenticated.
+	Listen string `yaml:"listen"`
 }
 
 type Limits struct {
@@ -155,6 +173,9 @@ func (c Config) Validate() error {
 	}
 	if c.LoginLimit.Failures < 0 || (c.LoginLimit.Failures > 0 && c.LoginLimit.Window <= 0) {
 		return fmt.Errorf("login_limit: failures must be >= 0 and window positive")
+	}
+	if c.Log.Format != "" && c.Log.Format != "text" && c.Log.Format != "json" {
+		return fmt.Errorf("log.format %q must be \"text\" or \"json\"", c.Log.Format)
 	}
 	if c.Limits.MaxRequestMiB < 1 || c.Limits.DefaultQuotaMiB < 0 {
 		return fmt.Errorf("limits: max_request_mib must be >= 1 and default_quota_mib >= 0")

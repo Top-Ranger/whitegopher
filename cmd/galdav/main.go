@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -23,12 +25,51 @@ import (
 	"github.com/bitflipp/galdav/internal/dav"
 	"github.com/bitflipp/galdav/internal/importer"
 	"github.com/bitflipp/galdav/internal/netx"
+	"github.com/bitflipp/galdav/internal/obs"
 	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/term"
 	_ "modernc.org/sqlite"
 )
+
+// version is set at release time with -ldflags "-X main.version=...".
+var version = ""
+
+func buildVersion() string {
+	v := version
+	var rev string
+	var dirty bool
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		// A plain tag from "go install ...@vX.Y.Z"; pseudo-versions and
+		// dirty builds fall through to "dev" plus the commit.
+		if mv := bi.Main.Version; v == "" && strings.HasPrefix(mv, "v") && !strings.ContainsAny(mv, "-+") {
+			v = mv
+		}
+		for _, s := range bi.Settings {
+			switch s.Key {
+			case "vcs.revision":
+				rev = s.Value
+			case "vcs.modified":
+				dirty = s.Value == "true"
+			}
+		}
+	}
+	if v == "" {
+		v = "dev"
+	}
+	if len(rev) > 12 {
+		rev = rev[:12]
+	}
+	if rev != "" {
+		v += " (" + rev
+		if dirty {
+			v += "+dirty"
+		}
+		v += ")"
+	}
+	return v
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -41,10 +82,15 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("galdav", flag.ContinueOnError)
 	cfgPath := fs.String("config", "config.yaml", "path to config file")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: galdav [-config file] <serve|useradd [-admin] [-email ADDRESS] NAME|import-baikal [-dry-run] SQLITE_FILE|-mysql DSN>")
+		fmt.Fprintln(os.Stderr, "usage: galdav [-config file] <serve|version|useradd [-admin] [-email ADDRESS] NAME|import-baikal [-dry-run] SQLITE_FILE|-mysql DSN>")
 	}
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if *showVersion || (fs.NArg() == 1 && fs.Arg(0) == "version") {
+		fmt.Println("galdav", buildVersion(), runtime.Version(), runtime.GOOS+"/"+runtime.GOARCH)
+		return nil
 	}
 	if fs.NArg() == 0 {
 		fs.Usage()
@@ -57,6 +103,7 @@ func run(args []string) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	setupLogging(cfg.Log)
 	st, err := store.Open(cfg.DB.DSN)
 	if err != nil {
 		return err
@@ -74,6 +121,16 @@ func run(args []string) error {
 	return fmt.Errorf("unknown command %q", fs.Arg(0))
 }
 
+func setupLogging(c config.Log) {
+	var h slog.Handler
+	if c.Format == "json" {
+		h = slog.NewJSONHandler(os.Stderr, nil)
+	} else {
+		h = slog.NewTextHandler(os.Stderr, nil)
+	}
+	slog.SetDefault(slog.New(h))
+}
+
 func serve(cfg config.Config, st *store.Store) error {
 	basePath := strings.TrimRight(cfg.BasePath, "/")
 	proxies, err := cfg.TrustedProxies()
@@ -81,7 +138,7 @@ func serve(cfg config.Config, st *store.Store) error {
 		return err
 	}
 	limiter := netx.NewLimiter(cfg.LoginLimit.Failures, cfg.LoginLimit.Window)
-	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm, Proxies: proxies, Limiter: limiter}
+	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm, Proxies: netx.Proxies(proxies), Limiter: limiter}
 	var mailer sched.Mailer
 	if cfg.SMTP.Host != "" {
 		mailer = &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
@@ -101,7 +158,7 @@ func serve(cfg config.Config, st *store.Store) error {
 		io.WriteString(w, "ok\n")
 	})
 	if cfg.Admin.Enabled {
-		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: proxies, Limiter: limiter}).Handler()
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter}).Handler()
 		if err != nil {
 			return err
 		}
@@ -110,9 +167,14 @@ func serve(cfg config.Config, st *store.Store) error {
 			http.Redirect(w, r, "/admin/", http.StatusSeeOther)
 		})
 	}
+	metrics := obs.New()
+	var accessLog *slog.Logger
+	if cfg.Log.Access {
+		accessLog = slog.Default()
+	}
 	hs := &http.Server{
 		Addr:              cfg.Listen,
-		Handler:           mux,
+		Handler:           obs.Middleware(metrics, accessLog, netx.Proxies(proxies).ClientIP, mux),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
@@ -121,6 +183,14 @@ func serve(cfg config.Config, st *store.Store) error {
 	defer stop()
 	errc := make(chan error, 1)
 	go func() { errc <- hs.ListenAndServe() }()
+	if cfg.Metrics.Listen != "" {
+		mm := http.NewServeMux()
+		mm.Handle("GET /metrics", metrics.Handler(st.DB, buildVersion()))
+		ms := &http.Server{Addr: cfg.Metrics.Listen, Handler: mm, ReadHeaderTimeout: 10 * time.Second}
+		go func() { errc <- ms.ListenAndServe() }()
+		defer ms.Close()
+		slog.Info("metrics", "addr", cfg.Metrics.Listen)
+	}
 	slog.Info("listening", "addr", cfg.Listen, "admin", cfg.Admin.Enabled)
 	select {
 	case err := <-errc:
