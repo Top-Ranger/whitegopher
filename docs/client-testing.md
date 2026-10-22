@@ -445,9 +445,8 @@ and sharing.
 - Setup: *Settings → Calendar → Accounts → Add Account → Other → Add CalDAV
   Account* (and CardDAV for contacts), server `cal.example.com`, then user and
   password. It should discover everything via `/.well-known/` (D1). If setup
-  fails, capture the traffic: **check whether the client requests `PROPFIND /`**
-  (galdav does not answer that yet, see the roadmap) or a path other than
-  `/.well-known/…`.
+  fails, capture the traffic: **check which path the client starts at**: `/.well-known/…` and `PROPFIND /`
+  are answered; anything else (e.g. a Baikal-style `/dav.php`) is not.
 - Tasks appear in **Reminders** (the CT Tasks list) and need the calendar
   object type `VTODO` (R6, W7).
 - Notice whether Apple adds `If-Schedule-Tag-Match`/`Schedule-Tag` headers when

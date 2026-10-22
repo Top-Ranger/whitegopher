@@ -45,6 +45,9 @@ limits:
   max_request_mib: 10    # largest request body, hence the largest single object
   default_quota_mib: 0   # object data each user may own; 0 = unlimited
 
+scheduling:
+  inbox_retention_days: 90   # delete scheduling-inbox items older than this; 0 keeps them
+
 login_limit:             # failed logins (DAV and admin UI) per client address
   failures: 10           # refuse further attempts after this many; 0 disables
   window: 15m

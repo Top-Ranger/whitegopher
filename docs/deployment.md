@@ -214,8 +214,9 @@ unreachable). Watch `journalctl -u galdav` for errors. For Prometheus, set
 `metrics.listen` to a loopback or private address and scrape `/metrics`. Disk growth is the
 database: object data plus the change log used for sync.
 
-**Maintenance.** The scheduling inbox is not pruned automatically; clients
-usually delete processed items. Deleting a user removes their collections,
+**Maintenance.** Scheduling-inbox items older than
+`scheduling.inbox_retention_days` (90 by default; 0 keeps them) are deleted at
+startup and daily; clients usually delete processed items sooner. Deleting a user removes their collections,
 shares and sessions.
 
 **Logs and privacy.** By default galdav logs startup, shutdown, errors and

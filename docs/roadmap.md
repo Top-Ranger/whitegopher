@@ -23,8 +23,6 @@ sharing especially), and the results decide the order of everything below.
 - Create recurrence overrides in the organizer's copy from an attendee's reply
   to a single instance of a series.
 - Inbound iMIP: process replies and invitations arriving by email.
-- Prune old scheduling-inbox items.
-- `PROPFIND /` answering with the DAV root for clients that start there.
 
 ## Sharing
 

@@ -85,3 +85,26 @@ func TestDiscovery(t *testing.T) {
 		t.Fatalf("other user: %d", resp.StatusCode)
 	}
 }
+
+func TestSiteRoot(t *testing.T) {
+	ts := newServer(t)
+	body := `<propfind xmlns="DAV:"><prop><current-user-principal/></prop></propfind>`
+	if resp, _ := do(t, "PROPFIND", ts.URL+"/", "", "", body, map[string]string{"Depth": "0"}); resp.StatusCode != 401 {
+		t.Fatalf("anonymous: %d", resp.StatusCode)
+	}
+	resp, out := do(t, "PROPFIND", ts.URL+"/", "alice", "secret", body, map[string]string{"Depth": "0"})
+	if resp.StatusCode != 207 || !strings.Contains(out, "/dav/principals/alice/") || !strings.Contains(out, "<D:href>/</D:href>") {
+		t.Fatalf("%d %s", resp.StatusCode, out)
+	}
+	resp, out = do(t, "PROPFIND", ts.URL+"/", "alice", "secret", "", map[string]string{"Depth": "1"})
+	if resp.StatusCode != 207 || !strings.Contains(out, "<D:href>/dav/</D:href>") {
+		t.Fatalf("depth 1: %d %s", resp.StatusCode, out)
+	}
+	resp, _ = do(t, "OPTIONS", ts.URL+"/", "alice", "secret", "", nil)
+	if resp.StatusCode != 204 || !strings.Contains(resp.Header.Get("DAV"), "calendar-access") {
+		t.Fatalf("options: %d %v", resp.StatusCode, resp.Header)
+	}
+	if resp, _ := do(t, "GET", ts.URL+"/", "alice", "secret", "", nil); resp.StatusCode != 404 {
+		t.Fatalf("GET /: %d", resp.StatusCode)
+	}
+}

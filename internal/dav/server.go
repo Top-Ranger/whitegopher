@@ -2,6 +2,7 @@
 package dav
 
 import (
+	"encoding/xml"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -56,7 +57,50 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/.well-known/caldav", redirect)
 	mux.HandleFunc("/.well-known/carddav", redirect)
 	mux.Handle(s.BasePath+"/", s.Auth.Middleware(http.HandlerFunc(s.serveDAV)))
+	if s.BasePath != "" {
+		// Some clients start discovery at the site root.
+		authed := s.Auth.Middleware(http.HandlerFunc(s.serveSiteRoot))
+		mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "PROPFIND" || r.Method == http.MethodOptions {
+				authed.ServeHTTP(w, r)
+				return
+			}
+			http.NotFound(w, r)
+		})
+	}
 	return mux
+}
+
+// serveSiteRoot answers PROPFIND and OPTIONS on "/" so that clients which
+// begin discovery there find the principal and the DAV tree.
+func (s *Server) serveSiteRoot(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.UserFrom(r.Context())
+	if r.Method == http.MethodOptions {
+		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol")
+		w.Header().Set("Allow", "OPTIONS, PROPFIND")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	pf, err := parsePropfind(r.Body)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	switch r.Header.Get("Depth") {
+	case "infinity":
+		writeError(w, http.StatusForbidden, "<D:propfind-finite-depth/>")
+		return
+	}
+	site := resource{href: "/", props: map[xml.Name]string{
+		dav("resourcetype"):           "<D:collection/>",
+		dav("displayname"):            "galdav",
+		dav("current-user-principal"): hrefXML(s.principalHref(u.Username)),
+	}}
+	out := []resource{site}
+	if r.Header.Get("Depth") == "1" {
+		out = append(out, s.rootRes(u))
+	}
+	writeMultistatus(w, pf, out, "")
 }
 
 // target is a parsed request path: <base>/<area>/<user>/<slug>/<uri>.

@@ -183,6 +183,9 @@ func serve(cfg config.Config, st *store.Store) error {
 	// Shut down gracefully on SIGINT/SIGTERM so in-flight writes finish.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if days := cfg.Scheduling.InboxRetentionDays; days > 0 {
+		go pruneInbox(ctx, st, days)
+	}
 	errc := make(chan error, 1)
 	go func() { errc <- hs.ListenAndServe() }()
 	if cfg.Metrics.Listen != "" {
@@ -202,6 +205,22 @@ func serve(cfg config.Config, st *store.Store) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return hs.Shutdown(shutdownCtx)
+	}
+}
+
+// pruneInbox removes old scheduling-inbox items at startup and daily.
+func pruneInbox(ctx context.Context, st *store.Store, days int) {
+	for {
+		if n, err := st.PruneInbox(days); err != nil {
+			slog.Error("prune inbox", "err", err)
+		} else if n > 0 {
+			slog.Info("pruned scheduling inbox", "items", n, "older_than_days", days)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(24 * time.Hour):
+		}
 	}
 }
 

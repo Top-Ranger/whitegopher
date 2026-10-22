@@ -30,6 +30,8 @@ type Config struct {
 	Log Log `yaml:"log"`
 	// Metrics exposes Prometheus metrics on a separate listener.
 	Metrics Metrics `yaml:"metrics"`
+	// Scheduling tunes invitation handling.
+	Scheduling Scheduling `yaml:"scheduling"`
 	// Limits bounds request sizes and per-user storage.
 	Limits Limits `yaml:"limits"`
 	// LoginLimit throttles failed logins (DAV and admin UI) per client address.
@@ -50,6 +52,12 @@ type Metrics struct {
 	// Empty disables metrics. Keep it off public interfaces: it is not
 	// authenticated.
 	Listen string `yaml:"listen"`
+}
+
+type Scheduling struct {
+	// InboxRetentionDays deletes scheduling-inbox items older than this;
+	// 0 keeps them forever.
+	InboxRetentionDays int `yaml:"inbox_retention_days"`
 }
 
 type Limits struct {
@@ -111,6 +119,7 @@ func Default() Config {
 		Admin:      Admin{Enabled: true},
 		SMTP:       SMTP{Port: 587},
 		Limits:     Limits{MaxRequestMiB: 10},
+		Scheduling: Scheduling{InboxRetentionDays: 90},
 		LoginLimit: LoginLimit{Failures: 10, Window: 15 * time.Minute},
 		Proxy:      Proxy{Trusted: []string{"127.0.0.1", "::1"}},
 		DB:         DB{Driver: "mysql"},
@@ -186,6 +195,9 @@ func (c Config) Validate() error {
 	}
 	if c.Log.Format != "" && c.Log.Format != "text" && c.Log.Format != "json" {
 		return fmt.Errorf("log.format %q must be \"text\" or \"json\"", c.Log.Format)
+	}
+	if c.Scheduling.InboxRetentionDays < 0 {
+		return fmt.Errorf("scheduling.inbox_retention_days must be >= 0")
 	}
 	if c.Limits.MaxRequestMiB < 1 || c.Limits.DefaultQuotaMiB < 0 {
 		return fmt.Errorf("limits: max_request_mib must be >= 1 and default_quota_mib >= 0")

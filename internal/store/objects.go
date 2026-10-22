@@ -253,3 +253,56 @@ func (s *Store) ObjectSize(collectionID int64, uri string) (n int64, err error) 
 	}
 	return
 }
+
+// PruneInbox deletes scheduling-inbox items older than days, logging the
+// deletions so syncing clients drop them too. It returns how many went.
+func (s *Store) PruneInbox(days int) (int, error) {
+	total := 0
+	for {
+		rows, err := s.DB.Query(`SELECT o.collection_id, o.uri FROM objects o
+			JOIN collections c ON c.id = o.collection_id
+			WHERE c.special = ? AND o.updated_at < NOW() - INTERVAL ? DAY LIMIT 500`, SpecialInbox, days)
+		if err != nil {
+			return total, err
+		}
+		type item struct {
+			coll int64
+			uri  string
+		}
+		var batch []item
+		for rows.Next() {
+			var it item
+			if err := rows.Scan(&it.coll, &it.uri); err != nil {
+				rows.Close()
+				return total, err
+			}
+			batch = append(batch, it)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil || len(batch) == 0 {
+			return total, err
+		}
+		tx, err := s.DB.Begin()
+		if err != nil {
+			return total, err
+		}
+		for _, it := range batch {
+			res, err := tx.Exec(`DELETE FROM objects WHERE collection_id = ? AND uri = ?`, it.coll, it.uri)
+			if err != nil {
+				tx.Rollback()
+				return total, err
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT INTO changes (collection_id, uri, deleted) VALUES (?, ?, 1)`, it.coll, it.uri); err != nil {
+				tx.Rollback()
+				return total, err
+			}
+			total++
+		}
+		if err := tx.Commit(); err != nil {
+			return total, err
+		}
+	}
+}

@@ -273,3 +273,50 @@ func TestShares(t *testing.T) {
 		t.Fatal("share survived the sharee's deletion")
 	}
 }
+
+func TestPruneInbox(t *testing.T) {
+	st := storetest.New(t)
+	regular := newCollection(t, st, "alice")
+	inbox, err := st.Inbox(regular.OwnerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	put := func(coll int64, uri, uid string) {
+		if _, err := st.PutObject(store.Object{CollectionID: coll, URI: uri, UID: uid, ETag: uid, Data: []byte("x"), Component: "VEVENT"}, store.PutCond{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put(inbox.ID, "old.ics", "old")
+	put(inbox.ID, "new.ics", "new")
+	put(regular.ID, "keep.ics", "keep") // ordinary calendars are never pruned
+	for _, uri := range []string{"old.ics"} {
+		if _, err := st.DB.Exec(`UPDATE objects SET updated_at = NOW() - INTERVAL 100 DAY WHERE uri = ?`, uri); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := st.DB.Exec(`UPDATE objects SET updated_at = NOW() - INTERVAL 100 DAY WHERE uri = 'keep.ics'`); err != nil {
+		t.Fatal(err)
+	}
+	seq, _ := st.SyncSeq(inbox.ID)
+	n, err := st.PruneInbox(90)
+	if err != nil || n != 1 {
+		t.Fatalf("pruned %d: %v", n, err)
+	}
+	if _, err := st.GetObject(inbox.ID, "old.ics"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("old item survived: %v", err)
+	}
+	for _, c := range []struct {
+		coll int64
+		uri  string
+	}{{inbox.ID, "new.ics"}, {regular.ID, "keep.ics"}} {
+		if _, err := st.GetObject(c.coll, c.uri); err != nil {
+			t.Fatalf("%s: %v", c.uri, err)
+		}
+	}
+	// Syncing clients learn about the removal.
+	after, _ := st.SyncSeq(inbox.ID)
+	changed, _ := st.ChangedURIs(inbox.ID, seq, after)
+	if len(changed) != 1 || changed[0] != "old.ics" {
+		t.Fatalf("changes: %v", changed)
+	}
+}

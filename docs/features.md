@@ -20,8 +20,8 @@ is in [roadmap.md](roadmap.md); options are in [configuration.md](configuration.
   `/dav/addressbooks/<user>/<name>/`. `/` redirects to the admin UI.
 
 Limits: no `Depth: infinity`; no WebDAV locking, `COPY`/`MOVE` or ACL
-methods; `PROPFIND` on `/` is not answered (clients should use `.well-known`
-or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by default).
+methods; `PROPFIND` on `/` answers only the current-user-principal and the DAV
+root; objects are limited by `limits.max_request_mib` (10 MiB by default).
 
 ## Authentication
 
@@ -81,7 +81,8 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
 
 - Every user has a scheduling **inbox** (`/dav/calendars/<user>/inbox/`, read
   only except for deleting items) and an **outbox** (`.../outbox/`, POST only).
-  The names `inbox` and `outbox` are reserved.
+  The names `inbox` and `outbox` are reserved. Inbox items older than
+  `scheduling.inbox_retention_days` (90) are pruned; clients are told through sync.
 - Users are matched by account **email** (case-insensitive, unique) or
   principal URL; both appear in `calendar-user-address-set`.
 - An organizer saving or deleting an event sends REQUEST or CANCEL to the
@@ -97,7 +98,7 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
 
 Limits: a REQUEST is sent on every organizer change, not only "significant"
 ones; an attendee's reply to one instance of a series does not create the
-override in the organizer's copy; the inbox is never pruned; replies by email
+override in the organizer's copy; replies by email
 (inbound iMIP) are not processed; edits made through a read-write share send no
 scheduling messages. The `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.
