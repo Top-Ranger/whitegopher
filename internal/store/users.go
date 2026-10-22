@@ -26,14 +26,19 @@ type User struct {
 	QuotaBytes *int64
 	// HideFreeBusy withholds the user's availability from other users.
 	HideFreeBusy bool
+	// TOTPSecret is the shared secret of the user's authenticator app. It is
+	// set while enrolling (TOTPEnabled false) and once two-factor is on.
+	TOTPSecret   string
+	TOTPEnabled  bool
+	TOTPLastStep int64
 }
 
-const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes, hide_freebusy`
+const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes, hide_freebusy, totp_secret, totp_enabled, totp_last_step`
 
 func scanUser(sc interface{ Scan(...any) error }) (User, error) {
 	var u User
 	var quota sql.NullInt64
-	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota, &u.HideFreeBusy)
+	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota, &u.HideFreeBusy, &u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep)
 	if quota.Valid {
 		u.QuotaBytes = &quota.Int64
 	}
@@ -184,4 +189,73 @@ func (s *Store) SetDefaultCalendar(userID int64, slug string) error {
 func (s *Store) SetHideFreeBusy(userID int64, hide bool) error {
 	_, err := s.DB.Exec(`UPDATE users SET hide_freebusy = ? WHERE id = ?`, hide, userID)
 	return err
+}
+
+// BeginTOTP stores a new, not yet confirmed secret.
+func (s *Store) BeginTOTP(userID int64, secret string) error {
+	_, err := s.DB.Exec(`UPDATE users SET totp_secret = ?, totp_enabled = 0, totp_last_step = 0 WHERE id = ? AND totp_enabled = 0`, secret, userID)
+	return err
+}
+
+// EnableTOTP turns two-factor on and stores the hashes of the recovery codes.
+func (s *Store) EnableTOTP(userID int64, step int64, recoveryHashes []string) error {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE users SET totp_enabled = 1, totp_last_step = ? WHERE id = ? AND totp_secret <> ''`, step, userID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM recovery_codes WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	for _, h := range recoveryHashes {
+		if _, err := tx.Exec(`INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)`, userID, h); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// DisableTOTP removes the secret and recovery codes.
+func (s *Store) DisableTOTP(userID int64) error {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE users SET totp_secret = '', totp_enabled = 0, totp_last_step = 0 WHERE id = ?`, userID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM recovery_codes WHERE user_id = ?`, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// AdvanceTOTPStep records that step was used, returning false if it (or a
+// later one) already was, so a code cannot be replayed.
+func (s *Store) AdvanceTOTPStep(userID, step int64) (bool, error) {
+	res, err := s.DB.Exec(`UPDATE users SET totp_last_step = ? WHERE id = ? AND totp_last_step < ?`, step, userID, step)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+// UseRecoveryCode consumes a recovery code, returning false if it is unknown.
+func (s *Store) UseRecoveryCode(userID int64, hash string) (bool, error) {
+	res, err := s.DB.Exec(`DELETE FROM recovery_codes WHERE user_id = ? AND code_hash = ?`, userID, hash)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (s *Store) CountRecoveryCodes(userID int64) (n int, err error) {
+	err = s.DB.QueryRow(`SELECT count(*) FROM recovery_codes WHERE user_id = ?`, userID).Scan(&n)
+	return
 }

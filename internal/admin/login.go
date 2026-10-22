@@ -32,12 +32,24 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name, pass := r.PostFormValue("username"), r.PostFormValue("password")
-	u, ok := s.Auth.Verify(name, pass)
+	if cu, err := s.Store.UserByName(name); err == nil && cu.TOTPEnabled && !s.codeLimiter.Allowed(codeKey(cu.ID)) {
+		slog.Warn("login blocked", "via", "admin", "user", name, "ip", ip)
+		obs.LoginsBlocked.Inc()
+		w.Header().Set("Retry-After", "900")
+		s.render(w, r, "login", http.StatusTooManyRequests, page{Title: "Sign in", Error: "Too many wrong codes for this account. Try again later."})
+		return
+	}
+	u, ok, passwordOK := s.Auth.VerifyLogin(name, pass, r.PostFormValue("code"))
 	if !ok {
 		s.Limiter.Fail(ip)
 		obs.LoginFailures.Inc()
 		slog.Warn("login failed", "via", "admin", "user", name, "ip", ip)
-		s.render(w, r, "login", http.StatusUnauthorized, page{Title: "Sign in", Error: "Wrong username or password."})
+		if passwordOK && r.PostFormValue("code") != "" {
+			// The password was right, so the code is being guessed: count
+			// against the account too, whatever address it comes from.
+			s.codeLimiter.Fail(codeKey(u.ID))
+		}
+		s.render(w, r, "login", http.StatusUnauthorized, page{Title: "Sign in", Error: "Wrong username, password or authentication code."})
 		return
 	}
 	s.Limiter.Reset(ip)

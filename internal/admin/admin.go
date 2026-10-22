@@ -48,6 +48,9 @@ type Server struct {
 	Limiter *netx.Limiter
 
 	pages map[string]*template.Template
+	// codeLimiter slows guessing of second-factor codes once the password is
+	// known, per account.
+	codeLimiter *netx.Limiter
 }
 
 type session struct {
@@ -85,6 +88,7 @@ func (s *Server) init() error {
 	if s.Limiter == nil {
 		s.Limiter = netx.NewLimiter(10, 15*time.Minute)
 	}
+	s.codeLimiter = netx.NewLimiter(5, 15*time.Minute)
 	s.pages = map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
@@ -136,6 +140,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/account/password", s.authed(s.changeOwnPassword))
 	mux.HandleFunc("POST /admin/account/default-calendar", s.authed(s.setDefaultCalendar))
 	mux.HandleFunc("POST /admin/account/privacy", s.authed(s.setPrivacy))
+	mux.HandleFunc("POST /admin/account/2fa/start", s.authed(s.twoFactorStart))
+	mux.HandleFunc("POST /admin/account/2fa/enable", s.authed(s.twoFactorEnable))
+	mux.HandleFunc("POST /admin/account/2fa/disable", s.authed(s.twoFactorDisable))
 	mux.HandleFunc("POST /admin/account/app-passwords", s.authed(s.createAppPassword))
 	mux.HandleFunc("POST /admin/account/app-passwords/{id}/delete", s.authed(s.deleteAppPassword))
 
@@ -145,6 +152,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /admin/users/{id}", s.adminOnly(s.userForm))
 	mux.HandleFunc("POST /admin/users/{id}", s.adminOnly(s.updateUser))
 	mux.HandleFunc("POST /admin/users/{id}/password", s.adminOnly(s.resetPassword))
+	mux.HandleFunc("POST /admin/users/{id}/2fa/disable", s.adminOnly(s.adminDisableTwoFactor))
 	mux.HandleFunc("POST /admin/users/{id}/delete", s.adminOnly(s.deleteUser))
 
 	return securityHeaders(sameOrigin(mux)), nil

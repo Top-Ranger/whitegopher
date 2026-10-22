@@ -33,6 +33,12 @@ or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by 
   once, revocable one by one, with last-used time. They are stored as SHA-256
   (they are random, and it keeps every request cheap) and are not accepted for
   the admin UI.
+- Optional two-factor sign-in for the admin UI (*Account → Two-factor*): TOTP
+  (RFC 6238; any authenticator app) confirmed with a first code, eight one-time
+  recovery codes, each code usable once, and a limit of five wrong codes per
+  account per 15 minutes. While it is on, DAV accepts **only app passwords**
+  (clients cannot answer a code prompt), so the account password cannot bypass
+  it. An administrator can switch it off for a user who lost their device.
 - Users only reach their own namespace (and collections shared with them).
 
 - Failed logins, on DAV and in the admin UI, are logged (`login failed` with
@@ -40,7 +46,7 @@ or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by 
   default 10 per 15 minutes; `429` with `Retry-After`). The address is the
   rightmost `X-Forwarded-For` entry that is not a trusted proxy.
 
-Limits: the rate limit is in memory and per process. No LDAP/OIDC and no two-factor authentication.
+Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/passkeys, and no QR code for the TOTP key (enter it by hand or open the `otpauth://` link).
 
 ## Calendars and contacts
 

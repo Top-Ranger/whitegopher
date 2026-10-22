@@ -189,3 +189,85 @@ func TestAppPasswords(t *testing.T) {
 		t.Fatal("revoked app password still works")
 	}
 }
+
+func TestTOTPVector(t *testing.T) {
+	// RFC 6238 appendix B: secret "12345678901234567890", T=59 -> 94287082
+	// (8 digits), i.e. 287082 in 6 digits.
+	secret := "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+	at := time.Unix(59, 0)
+	step, ok := auth.ValidTOTP(secret, "287082", at, 0)
+	if !ok || step != 1 {
+		t.Fatalf("step=%d ok=%v", step, ok)
+	}
+	if _, ok := auth.ValidTOTP(secret, "287082", at, step); ok {
+		t.Fatal("same step accepted twice")
+	}
+	if _, ok := auth.ValidTOTP(secret, "287082", at.Add(30*time.Second), 0); !ok {
+		t.Fatal("one step of drift should pass")
+	}
+	if _, ok := auth.ValidTOTP(secret, "287082", at.Add(120*time.Second), 0); ok {
+		t.Fatal("stale code accepted")
+	}
+	if _, ok := auth.ValidTOTP(secret, "28708", at, 0); ok {
+		t.Fatal("short code accepted")
+	}
+	s, err := auth.NewTOTPSecret()
+	if err != nil || len(s) != 32 {
+		t.Fatal(s, err)
+	}
+}
+
+func TestSecondFactor(t *testing.T) {
+	st := storetest.New(t)
+	hash, _ := auth.HashPassword("secret")
+	id, _ := st.CreateUser(store.User{Username: "alice", PasswordHash: hash})
+	a := &auth.Authenticator{Store: st, Realm: "R"}
+
+	secret, _ := auth.NewTOTPSecret()
+	if err := st.BeginTOTP(id, secret); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := a.VerifyLogin("alice", "secret", ""); !ok {
+		t.Fatal("not enabled yet: password alone should do")
+	}
+	codes, hashes, _ := auth.NewRecoveryCodes(3)
+	if err := st.EnableTOTP(id, 0, hashes); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, pw := a.VerifyLogin("alice", "secret", ""); ok || !pw {
+		t.Fatalf("missing code: ok=%v pw=%v", ok, pw)
+	}
+	if _, ok, pw := a.VerifyLogin("alice", "wrong", "123456"); ok || pw {
+		t.Fatal("wrong password accepted")
+	}
+	code, _ := auth.TOTPCode(secret, time.Now())
+	if _, ok, _ := a.VerifyLogin("alice", "secret", code); !ok {
+		t.Fatal("valid code rejected")
+	}
+	if _, ok, _ := a.VerifyLogin("alice", "secret", code); ok {
+		t.Fatal("code replayed")
+	}
+	if _, ok, _ := a.VerifyLogin("alice", "secret", strings.ToUpper(codes[0])); !ok {
+		t.Fatal("recovery code rejected")
+	}
+	if _, ok, _ := a.VerifyLogin("alice", "secret", codes[0]); ok {
+		t.Fatal("recovery code reused")
+	}
+
+	// DAV: account password no longer works; app passwords do.
+	if _, ok := a.VerifyDAV("alice", "secret"); ok {
+		t.Fatal("account password accepted on DAV with two-factor on")
+	}
+	token, h, _ := auth.NewAppPassword()
+	st.CreateAppPassword(id, "phone", h)
+	if _, ok := a.VerifyDAV("alice", token); !ok {
+		t.Fatal("app password rejected")
+	}
+	if err := st.DisableTOTP(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := a.VerifyDAV("alice", "secret"); !ok {
+		t.Fatal("password rejected after disabling")
+	}
+}

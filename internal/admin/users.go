@@ -2,6 +2,7 @@ package admin
 
 import (
 	"errors"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,13 +20,22 @@ type accountData struct {
 	AppPasswords []store.AppPassword
 	// NewToken is an app password just created; it is shown once.
 	NewToken string
+	// Two-factor state. Secret and URI are filled while enrolling;
+	// NewCodes holds recovery codes just generated (shown once).
+	TwoFactorOn  bool
+	Enrolling    bool
+	Secret       string
+	URI          template.URL // otpauth:// link; built here, so safe in an href
+	RecoveryLeft int
+	NewCodes     []string
 }
 
 func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
-	s.accountPageWith(w, r, sess, status, errMsg, "")
+	s.accountPageWith(w, r, sess, status, errMsg, nil)
 }
 
-func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg, newToken string) {
+// accountPageWith renders the account page; mod, if set, adjusts what it shows.
+func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string, mod func(*accountData)) {
 	cals, err := s.Store.ListCollections(sess.User.ID, store.KindCalendar)
 	if err != nil {
 		s.fail(w, err)
@@ -36,9 +46,21 @@ func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *s
 		s.fail(w, err)
 		return
 	}
-	s.render(w, r, "account", status, page{Title: "Account", Nav: "account", Error: errMsg,
-		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy,
-			AppPasswords: aps, NewToken: newToken}})
+	d := accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy,
+		AppPasswords: aps, TwoFactorOn: sess.User.TOTPEnabled}
+	if sess.User.TOTPEnabled {
+		if d.RecoveryLeft, err = s.Store.CountRecoveryCodes(sess.User.ID); err != nil {
+			s.fail(w, err)
+			return
+		}
+	} else if sess.User.TOTPSecret != "" {
+		d.Enrolling, d.Secret = true, sess.User.TOTPSecret
+		d.URI = template.URL(auth.OTPAuthURI("galdav", sess.User.Username, d.Secret))
+	}
+	if mod != nil {
+		mod(&d)
+	}
+	s.render(w, r, "account", status, page{Title: "Account", Nav: "account", Error: errMsg, Data: d})
 }
 
 func (s *Server) createAppPassword(w http.ResponseWriter, r *http.Request, sess *session) {
@@ -55,7 +77,7 @@ func (s *Server) createAppPassword(w http.ResponseWriter, r *http.Request, sess 
 		s.fail(w, err)
 		return
 	}
-	s.accountPageWith(w, r, sess, http.StatusOK, "", token)
+	s.accountPageWith(w, r, sess, http.StatusOK, "", func(d *accountData) { d.NewToken = token })
 }
 
 func (s *Server) deleteAppPassword(w http.ResponseWriter, r *http.Request, sess *session) {

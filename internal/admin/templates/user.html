@@ -13,6 +13,14 @@
     <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/users">Back</a></div>
   </form>
 </section>
+{{if .TOTPEnabled}}<section>
+  <h2>Two-factor authentication</h2>
+  <p>Two-factor sign-in is on for this user. If they lost their device, switch it off so they can sign in and set it up again.</p>
+  <form method="post" action="/admin/users/{{.ID}}/2fa/disable">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <button type="submit" class="secondary">Turn off two-factor</button>
+  </form>
+</section>{{end}}
 <section>
   <h2>Reset password</h2>
   <p class="muted">Ends all of this user's sessions.</p>

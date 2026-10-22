@@ -20,6 +20,41 @@
   </form>
 </section>
 {{end}}{{end}}
+<section id="two-factor">
+  <h2>Two-factor authentication</h2>
+  {{with .Data}}
+  {{if .NewCodes}}
+  <div class="flash" role="status">
+    <p>Two-factor authentication is on. <strong>Save these recovery codes now; they are shown only once.</strong> Each works once if you lose your authenticator.</p>
+    <p>{{range .NewCodes}}<code>{{.}}</code> {{end}}</p>
+  </div>
+  {{end}}
+  {{if .TwoFactorOn}}
+  <p>On. {{.RecoveryLeft}} recovery code{{if ne .RecoveryLeft 1}}s{{end}} left. Sign-in to this web interface asks for a code. Calendar and contact apps can no longer use your account password: give each one an <strong>app password</strong> (below).</p>
+  <form method="post" action="/admin/account/2fa/disable" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+    <label>Authentication or recovery code <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    <div><button type="submit" class="danger">Turn off two-factor</button></div>
+  </form>
+  {{else if .Enrolling}}
+  <p>Add this account to an authenticator app (enter the key by hand, or open the link on your phone), then type the 6-digit code it shows.</p>
+  <p>Key: <code>{{.Secret}}</code></p>
+  <p class="muted"><a href="{{.URI}}">Open in authenticator app</a> (otpauth link)</p>
+  <form method="post" action="/admin/account/2fa/enable" class="stack">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <label>Code <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    <div><button type="submit">Turn on two-factor</button></div>
+  </form>
+  {{else}}
+  <p class="muted">Ask for a code from an authenticator app when signing in here. Once on, DAV clients need app passwords.</p>
+  <form method="post" action="/admin/account/2fa/start">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <button type="submit" class="secondary">Set up two-factor</button>
+  </form>
+  {{end}}
+  {{end}}
+</section>
 <section>
   <h2>App passwords</h2>
   <p class="muted">Use one per device or app instead of your account password. Each can be revoked on its own, and a leaked one never exposes your account password.</p>

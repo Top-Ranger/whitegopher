@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 
@@ -126,16 +127,45 @@ func HashAppPassword(token string) string {
 }
 
 // VerifyDAV checks the credentials of a DAV request: an app password of the
-// user, or their account password.
+// user, or their account password. DAV clients cannot answer a second-factor
+// prompt, so once two-factor is on, only app passwords are accepted.
 func (a *Authenticator) VerifyDAV(username, password string) (store.User, bool) {
-	if strings.HasPrefix(password, AppPasswordPrefix) {
-		if u, err := a.Store.UserByName(username); err == nil {
+	if u, err := a.Store.UserByName(username); err == nil {
+		if strings.HasPrefix(password, AppPasswordPrefix) {
 			if ok, _ := a.Store.UseAppPassword(u.ID, HashAppPassword(password)); ok {
 				return u, true
 			}
 		}
+		if u.TOTPEnabled {
+			return u, false
+		}
 	}
 	return a.Verify(username, password)
+}
+
+// VerifyLogin checks an admin UI sign-in: the account password and, when the
+// user has two-factor on, an authenticator or recovery code. passwordOK says
+// whether the password alone was right, so callers can throttle code guesses.
+func (a *Authenticator) VerifyLogin(username, password, code string) (u store.User, ok, passwordOK bool) {
+	u, passwordOK = a.Verify(username, password)
+	if !passwordOK {
+		return u, false, false
+	}
+	if u.TOTPEnabled && !a.CheckSecondFactor(u, code) {
+		return u, false, true
+	}
+	return u, true, true
+}
+
+// CheckSecondFactor verifies an authenticator code (once per time step) or a
+// recovery code (once ever) for a user who has two-factor on.
+func (a *Authenticator) CheckSecondFactor(u store.User, code string) bool {
+	if step, ok := ValidTOTP(u.TOTPSecret, code, time.Now(), u.TOTPLastStep); ok {
+		fresh, err := a.Store.AdvanceTOTPStep(u.ID, step)
+		return err == nil && fresh
+	}
+	ok, _ := a.Store.UseRecoveryCode(u.ID, HashRecoveryCode(code))
+	return ok
 }
 
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._@-]{0,63}$`)

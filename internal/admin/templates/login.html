@@ -5,6 +5,7 @@
   <form method="post" action="{{if .IsSetup}}/admin/setup{{else}}/admin/login{{end}}" class="stack">
     <label>Username <input type="text" name="username" autocomplete="username" required autofocus></label>
     <label>Password <input type="password" name="password" autocomplete="{{if .IsSetup}}new-password{{else}}current-password{{end}}" required></label>
+    {{if not .IsSetup}}<label>Authentication code <span class="muted">(only if you turned on two-factor)</span> <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="32"></label>{{end}}
     {{if .IsSetup}}<label>Repeat password <input type="password" name="password2" autocomplete="new-password" required></label>{{end}}
     <button type="submit">{{if .IsSetup}}Create account{{else}}Sign in{{end}}</button>
   </form>
