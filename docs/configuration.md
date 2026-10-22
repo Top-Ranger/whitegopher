@@ -11,6 +11,7 @@ galdav [-config FILE] <command>
 | Command | Purpose |
 |---|---|
 | `serve` | run the server |
+| `imip-receive [-no-auth-check] [FILE]` | process one iMIP email (replies and invitations) from FILE or stdin |
 | `version` (or `-version`) | print the version and exit; needs no config or database |
 | `useradd [-admin] [-email ADDRESS] NAME` | create a user; prompts for the password (hidden, twice), or reads one line from stdin when piped; at least 8 characters |
 | `import-baikal [-dry-run] SQLITE_FILE` | import from a Baikal SQLite database |
@@ -47,6 +48,7 @@ limits:
 
 scheduling:
   inbox_retention_days: 90   # delete scheduling-inbox items older than this; 0 keeps them
+  imip_require_auth: true    # imip-receive only trusts mail the receiving MTA authenticated
 
 login_limit:             # failed logins (DAV and admin UI) per client address
   failures: 10           # refuse further attempts after this many; 0 disables

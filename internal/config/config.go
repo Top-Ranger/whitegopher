@@ -58,6 +58,10 @@ type Scheduling struct {
 	// InboxRetentionDays deletes scheduling-inbox items older than this;
 	// 0 keeps them forever.
 	InboxRetentionDays int `yaml:"inbox_retention_days"`
+	// IMIPRequireAuth makes "galdav imip-receive" accept an email only when
+	// the receiving mail server vouched for the sender (an
+	// Authentication-Results header with dkim, spf or dmarc pass).
+	IMIPRequireAuth bool `yaml:"imip_require_auth"`
 }
 
 type Limits struct {
@@ -119,7 +123,7 @@ func Default() Config {
 		Admin:      Admin{Enabled: true},
 		SMTP:       SMTP{Port: 587},
 		Limits:     Limits{MaxRequestMiB: 10},
-		Scheduling: Scheduling{InboxRetentionDays: 90},
+		Scheduling: Scheduling{InboxRetentionDays: 90, IMIPRequireAuth: true},
 		LoginLimit: LoginLimit{Failures: 10, Window: 15 * time.Minute},
 		Proxy:      Proxy{Trusted: []string{"127.0.0.1", "::1"}},
 		DB:         DB{Driver: "mysql"},

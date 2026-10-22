@@ -187,6 +187,34 @@ something to sync. The client-testing status is stated in
 Not imported: shared calendars, Baikal's pending scheduling inbox, and its
 settings. A calendar named `inbox` or `outbox` is renamed (reserved names).
 
+## Inbound email (optional)
+
+Attendees outside galdav answer an invitation by email, and external organizers
+invite your users by email. galdav does not fetch mail; your mail server hands
+each relevant message to `galdav imip-receive`, which reads it from standard
+input. Typical wiring (Postfix, Sieve or procmail): for messages that contain a
+`text/calendar` part and are addressed to a galdav user, **copy** them to
+
+```sh
+/usr/local/bin/galdav -config /etc/galdav/config.yaml imip-receive
+```
+
+run as the `galdav` user (e.g. a Postfix `pipe` transport with `user=galdav`,
+or a Sieve/procmail pipe action). The command exits `0` for anything it
+understood or deliberately ignored (it logs why, at warn level) and non-zero for
+real errors such as an unreachable database, so the mail is retried.
+
+Email can be forged, so galdav acts on a message only if all of these hold:
+the calendar's `ORGANIZER`/`ATTENDEE` is the message's `From`, the topmost
+`Authentication-Results` header (added by **your** mail server, e.g. via
+OpenDKIM/OpenDMARC/Rspamd) shows `dkim=pass`, `spf=pass` or `dmarc=pass`, and
+the message would not overwrite an event the user organizes. Leave
+`scheduling.imip_require_auth` on unless your mail path is fully trusted
+(`-no-auth-check` skips the check for a single run, e.g. when testing).
+
+Users need their **email address** set in their account: that is how a message
+is matched to them.
+
 ## Operations
 
 **Backups.** All state is in the database; config and the env file are small.

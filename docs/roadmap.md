@@ -17,7 +17,6 @@ sharing especially), and the results decide the order of everything below.
 
 - Partial `calendar-data` retrieval and `expand` in `calendar-query` /
   `calendar-multiget` (some clients rely on `expand`).
-- Inbound iMIP: process replies and invitations arriving by email.
 
 ## Sharing
 

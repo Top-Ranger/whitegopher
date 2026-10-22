@@ -29,6 +29,7 @@ proxy:
 # Scheduling-inbox items older than this many days are deleted (0 = keep).
 # scheduling:
 #   inbox_retention_days: 90
+#   imip_require_auth: true   # see "Inbound email" in docs/deployment.md
 
 # Largest request body (and so object), and the default per-user storage quota
 # (0 = unlimited; administrators can set a quota per user in the admin UI).

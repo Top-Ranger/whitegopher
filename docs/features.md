@@ -106,10 +106,18 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
 - Attendees who are already invited are mailed again (iMIP) only after a
   significant change or when newly added; local attendees' copies are always
   updated, silently. Other edits (title, notes, alarms) do not resend.
+- Inbound iMIP: `galdav imip-receive` reads one email (stdin or a file) and
+  applies a REPLY from an external attendee to the local organizer's copy, or a
+  REQUEST/CANCEL from an external organizer to local attendees. The calendar's
+  ORGANIZER/ATTENDEE must equal the sender, the receiving mail server must have
+  vouched for the sender (`Authentication-Results` with dkim, spf or dmarc
+  pass; `scheduling.imip_require_auth`), and a message can never overwrite an
+  event the user organizes or one from a different organizer. galdav does not
+  fetch mail itself: your mail server pipes messages to it (see the deployment
+  guide).
 - Explicit scheduling: iTIP messages and free-busy requests POSTed to the outbox.
 
-Limits: replies by email
-(inbound iMIP) are not processed; edits made through a read-write share send no
+Limits: edits made through a read-write share send no
 scheduling messages. The `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.
 
