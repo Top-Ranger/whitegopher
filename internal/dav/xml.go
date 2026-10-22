@@ -70,6 +70,8 @@ type resource struct {
 	props map[xml.Name]string
 	// status, when non-zero, makes this a status-only response (e.g. 404).
 	status int
+	// errorXML, with status, is the DAV:error body of the response.
+	errorXML string
 }
 
 func esc(s string) string {
@@ -111,7 +113,11 @@ func writeMultistatus(w http.ResponseWriter, pf propfind, rs []resource, trailer
 	for _, r := range rs {
 		b.WriteString("<D:response>" + hrefXML(r.href))
 		if r.status != 0 {
-			b.WriteString("<D:status>HTTP/1.1 " + strconv.Itoa(r.status) + " " + http.StatusText(r.status) + "</D:status></D:response>")
+			b.WriteString("<D:status>HTTP/1.1 " + strconv.Itoa(r.status) + " " + http.StatusText(r.status) + "</D:status>")
+			if r.errorXML != "" {
+				b.WriteString("<D:error>" + r.errorXML + "</D:error>")
+			}
+			b.WriteString("</D:response>")
 			continue
 		}
 		var found, missing []xml.Name

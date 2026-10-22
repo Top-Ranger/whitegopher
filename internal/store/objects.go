@@ -29,6 +29,8 @@ type Object struct {
 	// objects as candidates.
 	FirstOcc sql.NullInt64
 	LastOcc  sql.NullInt64
+	// Modified is the last write time in unix seconds (0 when not loaded).
+	Modified int64
 }
 
 // PutCond expresses the conditional-request headers of a PUT.
@@ -108,11 +110,11 @@ func (s *Store) PutObject(o Object, cond PutCond) (created bool, err error) {
 	return !exists, tx.Commit()
 }
 
-const objMeta = `id, collection_id, uri, uid, etag, length(data), component, first_occ, last_occ, schedule_tag`
+const objMeta = `id, collection_id, uri, uid, etag, length(data), component, first_occ, last_occ, schedule_tag, UNIX_TIMESTAMP(updated_at)`
 
 func scanObject(sc interface{ Scan(...any) error }, withData bool) (Object, error) {
 	var o Object
-	dest := []any{&o.ID, &o.CollectionID, &o.URI, &o.UID, &o.ETag, &o.Size, &o.Component, &o.FirstOcc, &o.LastOcc, &o.ScheduleTag}
+	dest := []any{&o.ID, &o.CollectionID, &o.URI, &o.UID, &o.ETag, &o.Size, &o.Component, &o.FirstOcc, &o.LastOcc, &o.ScheduleTag, &o.Modified}
 	if withData {
 		dest = append(dest, &o.Data)
 	}

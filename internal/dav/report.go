@@ -275,6 +275,9 @@ func (s *Server) addressbookQuery(w http.ResponseWriter, r *http.Request, u stor
 	var req struct {
 		Prop   *propList      `xml:"DAV: prop"`
 		Filter cardFilterSpec `xml:"urn:ietf:params:xml:ns:carddav filter"`
+		Limit  *struct {
+			NResults int `xml:"urn:ietf:params:xml:ns:carddav nresults"`
+		} `xml:"urn:ietf:params:xml:ns:carddav limit"`
 	}
 	if err := xml.Unmarshal(body, &req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -295,7 +298,24 @@ func (s *Server) addressbookQuery(w http.ResponseWriter, r *http.Request, u stor
 			hits = append(hits, o)
 		}
 	}
-	s.respondObjects(w, u, c, req.Prop.propfind(), hits)
+	pf := req.Prop.propfind()
+	if req.Limit != nil && req.Limit.NResults > 0 && len(hits) > req.Limit.NResults {
+		// RFC 6352 8.6.1: send the first nresults matches and flag the
+		// request URI as truncated.
+		hits = hits[:req.Limit.NResults]
+		out := make([]resource, 0, len(hits)+1)
+		for _, o := range hits {
+			out = append(out, withData(s.objectRes(u, c, o), c, o, pf))
+		}
+		out = append(out, resource{
+			href:     s.collHref(areaOf(c.Kind), u.Username, c.Slug),
+			status:   http.StatusInsufficientStorage,
+			errorXML: "<D:number-of-matches-within-limits/>",
+		})
+		writeMultistatus(w, pf, out, "")
+		return
+	}
+	s.respondObjects(w, u, c, pf, hits)
 }
 
 // freeBusyQuery answers a free-busy-query REPORT (RFC 4791 7.10) for one

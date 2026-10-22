@@ -47,9 +47,11 @@ func do(t *testing.T, method, url, user, pass, body string, hdr map[string]strin
 
 func TestWellKnown(t *testing.T) {
 	ts := newServer(t)
-	resp, _ := do(t, "GET", ts.URL+"/.well-known/caldav", "", "", "", nil)
-	if resp.StatusCode != 301 || resp.Header.Get("Location") != "/dav/" {
-		t.Fatalf("got %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	for _, p := range []string{"/.well-known/caldav", "/.well-known/caldav/", "/.well-known/carddav", "/.well-known/carddav/"} {
+		resp, _ := do(t, "GET", ts.URL+p, "", "", "", nil)
+		if resp.StatusCode != 301 || resp.Header.Get("Location") != "/dav/" {
+			t.Fatalf("%s: got %d %q", p, resp.StatusCode, resp.Header.Get("Location"))
+		}
 	}
 }
 

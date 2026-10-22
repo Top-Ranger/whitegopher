@@ -156,3 +156,26 @@ func TestAddressBook(t *testing.T) {
 		t.Fatal(b)
 	}
 }
+
+func TestLastModified(t *testing.T) {
+	c := &client{t, newServer(t).URL}
+	c.req("MKCALENDAR", "/dav/calendars/alice/work/", "")
+	st, b, _ := c.req("PUT", "/dav/calendars/alice/work/ev1.ics", ics)
+	expect(t, st, 201, b)
+	st, b, h := c.req("GET", "/dav/calendars/alice/work/ev1.ics", "")
+	expect(t, st, 200, b)
+	lm := h["Last-Modified"]
+	if len(lm) != 1 {
+		t.Fatalf("no Last-Modified: %v", h)
+	}
+	st, b, _ = c.req("GET", "/dav/calendars/alice/work/ev1.ics", "", "If-Modified-Since", lm[0])
+	expect(t, st, 304, b)
+	st, b, _ = c.req("GET", "/dav/calendars/alice/work/ev1.ics", "", "If-Modified-Since", "Mon, 01 Jan 2001 00:00:00 GMT")
+	expect(t, st, 200, b)
+	// If-None-Match takes precedence over If-Modified-Since.
+	st, b, _ = c.req("GET", "/dav/calendars/alice/work/ev1.ics", "", "If-Modified-Since", lm[0], "If-None-Match", `"other"`)
+	expect(t, st, 200, b)
+	st, b, _ = c.req("PROPFIND", "/dav/calendars/alice/work/", `<d:propfind xmlns:d="DAV:"><d:prop><d:getlastmodified/></d:prop></d:propfind>`, "Depth", "1")
+	expect(t, st, 207, b)
+	has(t, b, "<D:getlastmodified>"+lm[0]+"</D:getlastmodified>")
+}

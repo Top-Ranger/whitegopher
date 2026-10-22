@@ -77,6 +77,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("HEAD /public/{token}", s.servePublic)
 	mux.HandleFunc("/.well-known/caldav", redirect)
 	mux.HandleFunc("/.well-known/carddav", redirect)
+	mux.HandleFunc("/.well-known/caldav/", redirect)
+	mux.HandleFunc("/.well-known/carddav/", redirect)
 	mux.Handle(s.BasePath+"/", s.Auth.Middleware(http.HandlerFunc(s.serveDAV)))
 	if s.BasePath != "" {
 		// Some clients start discovery at the site root.

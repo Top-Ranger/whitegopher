@@ -3,8 +3,10 @@ package dav
 import (
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bitflipp/galdav/internal/sharing"
 	"github.com/bitflipp/galdav/internal/store"
@@ -264,6 +266,9 @@ func (s *Server) objectRes(u store.User, c store.Collection, o store.Object) res
 		dav("owner"):                      hrefXML(s.principalHref(owner)),
 		dav("current-user-privilege-set"): privFor(c),
 	}}
+	if o.Modified > 0 {
+		r.props[dav("getlastmodified")] = time.Unix(o.Modified, 0).UTC().Format(http.TimeFormat)
+	}
 	if o.ScheduleTag != "" {
 		r.props[cal("schedule-tag")] = `"` + o.ScheduleTag + `"`
 	}

@@ -19,7 +19,10 @@ is in [roadmap.md](roadmap.md); options are in [configuration.md](configuration.
 - Tree layout: `/dav/principals/<user>/`, `/dav/calendars/<user>/<name>/`,
   `/dav/addressbooks/<user>/<name>/`. `/` redirects to the admin UI.
 
-Limits: no `Depth: infinity`; no WebDAV locking, `COPY`/`MOVE` or ACL
+Limits: no `Depth: infinity` (an explicit one gets `403 propfind-finite-depth`; a
+missing `Depth` header is treated as 0, not as RFC 4918's infinity); only the
+properties listed here are stored, so arbitrary dead properties set with
+`PROPPATCH` are refused; collection names may not contain spaces; no WebDAV locking, `COPY`/`MOVE` or ACL
 methods; `PROPFIND` on `/` answers only the current-user-principal and the DAV
 root; objects are limited by `limits.max_request_mib` (10 MiB by default).
 
@@ -71,8 +74,13 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/p
   events; the moved instances of overrides at their new time) and
   `limit-recurrence-set`, in `calendar-query`, `calendar-multiget` and
   `sync-collection`.
+- `addressbook-query` honours `<limit><nresults>`: the first matches are sent
+  and the collection gets `507` with `number-of-matches-within-limits`.
+- Objects carry `Last-Modified` (and `DAV:getlastmodified`); a `GET` with
+  `If-Modified-Since` and no `If-None-Match` can answer `304`.
 
-Limits: quotas count object data only, are checked just before a write (so
+Limits: the `timezone` element of a `calendar-query` is ignored, so floating
+times are matched as UTC; quotas count object data only, are checked just before a write (so
 concurrent uploads can overshoot slightly) and do not stop scheduling from
 delivering invitations into a full mailbox; a time-range query
 matches a moved recurrence instance at its original time too (rare false

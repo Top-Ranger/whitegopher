@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bitflipp/galdav/internal/index"
 	"github.com/bitflipp/galdav/internal/sched"
@@ -221,6 +222,16 @@ func (s *Server) get(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	h.Set("ETag", `"`+o.ETag+`"`)
 	if o.ScheduleTag != "" {
 		h.Set("Schedule-Tag", `"`+o.ScheduleTag+`"`)
+	}
+	if o.Modified > 0 {
+		mod := time.Unix(o.Modified, 0).UTC()
+		h.Set("Last-Modified", mod.Format(http.TimeFormat))
+		// RFC 9110 13.1.3: If-Modified-Since is ignored when If-None-Match is present.
+		if ims, err := http.ParseTime(r.Header.Get("If-Modified-Since")); err == nil &&
+			r.Header.Get("If-None-Match") == "" && !mod.After(ims) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 	}
 	h.Set("Content-Type", contentType(c, o))
 	h.Set("Content-Length", strconv.Itoa(len(o.Data)))

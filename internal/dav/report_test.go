@@ -164,3 +164,24 @@ func TestAddressbookQuery(t *testing.T) {
 	b = q(``)
 	has(t, b, "1.vcf", "2.vcf")
 }
+
+func TestAddressbookQueryLimit(t *testing.T) {
+	c := &client{t, newServer(t).URL}
+	c.req("MKCOL", "/dav/addressbooks/alice/b/", `<mkcol xmlns="DAV:" xmlns:a="urn:ietf:params:xml:ns:carddav"><set><prop><resourcetype><collection/><a:addressbook/></resourcetype></prop></set></mkcol>`)
+	for _, n := range []string{"1", "2", "3"} {
+		c.req("PUT", "/dav/addressbooks/alice/b/"+n+".vcf", "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:"+n+"\r\nFN:P"+n+"\r\nN:;P"+n+";;;\r\nEND:VCARD\r\n")
+	}
+	q := func(limit string) string {
+		st, b, _ := c.req("REPORT", "/dav/addressbooks/alice/b/", `<a:addressbook-query xmlns:a="urn:ietf:params:xml:ns:carddav" xmlns:d="DAV:"><d:prop><d:getetag/></d:prop>`+limit+`</a:addressbook-query>`)
+		expect(t, st, 207, b)
+		return b
+	}
+	b := q(`<a:limit><a:nresults>2</a:nresults></a:limit>`)
+	if n := strings.Count(b, ".vcf"); n != 2 {
+		t.Fatalf("%d objects: %s", n, b)
+	}
+	has(t, b, "507 Insufficient Storage", "number-of-matches-within-limits", "/dav/addressbooks/alice/b/</D:href>")
+	b = q(`<a:limit><a:nresults>3</a:nresults></a:limit>`)
+	has(t, b, "1.vcf", "2.vcf", "3.vcf")
+	lacks(t, b, "507")
+}
