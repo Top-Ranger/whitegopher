@@ -7,7 +7,7 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // Errors from HandleOutbox, mapped to CalDAV preconditions by the caller.

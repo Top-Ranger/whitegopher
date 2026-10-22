@@ -19,9 +19,9 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"github.com/bitflipp/galdav/internal/netx"
-	"github.com/bitflipp/galdav/internal/obs"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/netx"
+	"github.com/bitflipp/whitegopher/internal/obs"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // HA1 returns md5(user:realm:password), the hash Baikal stores. It is only

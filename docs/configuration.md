@@ -1,11 +1,11 @@
 # Configuration reference
 
-galdav reads a YAML file (default `config.yaml` in the working directory;
+whitegopher reads a YAML file (default `config.yaml` in the working directory;
 choose another with `-config`), then applies environment overrides. Unknown
 keys are ignored. Example files are in [`deploy/`](../deploy).
 
 ```
-galdav [-config FILE] <command>
+whitegopher [-config FILE] <command>
 ```
 
 | Command | Purpose |
@@ -26,7 +26,7 @@ base_path: "/dav"        # URL prefix of the DAV tree
 
 db:
   driver: mysql          # optional; "mysql" (MariaDB included) is the only value
-  dsn: ""                # go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/galdav"
+  dsn: ""                # go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/whitegopher"
 
 admin:
   enabled: true          # serve the web UI under /admin/
@@ -62,7 +62,7 @@ smtp:                    # optional iMIP email for attendees without an account
   port: 587              # STARTTLS is used when the server offers it
   username: ""
   password: ""
-  from: ""               # required with host, e.g. "galdav <noreply@example.com>"
+  from: ""               # required with host, e.g. "whitegopher <noreply@example.com>"
 ```
 
 ### Things worth knowing
@@ -72,10 +72,10 @@ smtp:                    # optional iMIP email for attendees without an account
   (`md5(user:realm:password)`) work: it must match until each imported user
   has signed in once. After that, or if you never import from Baikal, it can
   be changed freely.
-- **`db.dsn`** must name an existing database; galdav creates and migrates the
+- **`db.dsn`** must name an existing database; whitegopher creates and migrates the
   tables itself. Special characters (`/`, `@`) in the password break the DSN
   parser, so generate one with `openssl rand -hex 24`. Unix sockets work:
-  `user:pass@unix(/run/mysqld/mysqld.sock)/galdav`.
+  `user:pass@unix(/run/mysqld/mysqld.sock)/whitegopher`.
 - **`proxy.trusted`** matters whenever a reverse proxy is in front. Only
   requests from these peers may set the client address (`X-Forwarded-For`)
   and scheme (`X-Forwarded-Proto`); everyone else's headers are ignored. The
@@ -101,11 +101,11 @@ smtp:                    # optional iMIP email for attendees without an account
 
 | Variable | Effect |
 |---|---|
-| `GALDAV_DB_DSN` | overrides `db.dsn` (keeps the password out of the config file) |
-| `GALDAV_SMTP_PASSWORD` | overrides `smtp.password` |
+| `WHITEGOPHER_DB_DSN` | overrides `db.dsn` (keeps the password out of the config file) |
+| `WHITEGOPHER_SMTP_PASSWORD` | overrides `smtp.password` |
 
 Variables used only by the test suite are described in the README
-(`GALDAV_TEST_MYSQL_DSN`, `GALDAV_TEST_SKIP_DB`).
+(`WHITEGOPHER_TEST_MYSQL_DSN`, `WHITEGOPHER_TEST_SKIP_DB`).
 
 ## Endpoints
 

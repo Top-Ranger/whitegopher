@@ -9,9 +9,9 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // textEscaper escapes an iCalendar TEXT value (RFC 5545 3.3.11).
@@ -95,7 +95,7 @@ func (s *Server) servePublic(w http.ResponseWriter, r *http.Request) {
 func publicCalendar(c store.Collection, objs []store.Object) []byte {
 	cal := ical.NewCalendar()
 	cal.Props.SetText(ical.PropVersion, "2.0")
-	cal.Props.SetText(ical.PropProductID, "-//galdav//CalDAV//EN")
+	cal.Props.SetText(ical.PropProductID, "-//whitegopher//CalDAV//EN")
 	name := c.DisplayName
 	if name == "" {
 		name = c.Slug

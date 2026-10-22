@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 func TestShareInvitationInAdminUI(t *testing.T) {

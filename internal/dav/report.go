@@ -14,9 +14,9 @@ import (
 	"github.com/emersion/go-ical"
 	"github.com/emersion/go-vcard"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 type propList struct {
@@ -144,7 +144,7 @@ func (s *Server) syncCollection(w http.ResponseWriter, r *http.Request, u store.
 	}
 	var since int64
 	if tok := strings.TrimSpace(req.Token); tok != "" {
-		n, ok := strings.CutPrefix(tok, "urn:galdav:sync:")
+		n, ok := strings.CutPrefix(tok, "urn:whitegopher:sync:")
 		since, err = strconv.ParseInt(n, 10, 64)
 		if !ok || err != nil || since < 0 || since > seq {
 			writeError(w, http.StatusForbidden, "<D:valid-sync-token/>")

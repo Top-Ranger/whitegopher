@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // Service shares collections between users.

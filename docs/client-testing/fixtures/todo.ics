@@ -1,8 +1,8 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//galdav client tests//EN
+PRODID:-//whitegopher client tests//EN
 BEGIN:VTODO
-UID:ct-todo@galdav.test
+UID:ct-todo@whitegopher.test
 DTSTAMP:20260101T000000Z
 SUMMARY:CT task with due date
 DUE:@D3@T170000Z

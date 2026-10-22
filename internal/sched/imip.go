@@ -33,7 +33,7 @@ type SMTP struct {
 	Port     int
 	Username string
 	Password string
-	// From is the envelope and header sender, e.g. "galdav <noreply@example.com>".
+	// From is the envelope and header sender, e.g. "whitegopher <noreply@example.com>".
 	From string
 }
 
@@ -76,7 +76,7 @@ func (m *SMTP) SendText(to, subject, text string) error {
 	h("To", rcpt.Address)
 	h("Subject", (&mimeWord{}).encode(subject))
 	h("Date", time.Now().Format(time.RFC1123Z))
-	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@galdav>")
+	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@whitegopher>")
 	h("MIME-Version", "1.0")
 	h("Content-Type", "text/plain; charset=UTF-8")
 	h("Content-Transfer-Encoding", "quoted-printable")
@@ -100,7 +100,7 @@ func buildMIME(from string, msg Message) ([]byte, error) {
 	if _, err := rand.Read(rnd); err != nil {
 		return nil, err
 	}
-	boundary := "galdav-" + hex.EncodeToString(rnd)
+	boundary := "whitegopher-" + hex.EncodeToString(rnd)
 	subject := subjects[msg.Method]
 	if subject == "" {
 		subject = msg.Method
@@ -117,7 +117,7 @@ func buildMIME(from string, msg Message) ([]byte, error) {
 	}
 	h("Subject", (&mimeWord{}).encode(subject))
 	h("Date", time.Now().Format(time.RFC1123Z))
-	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@galdav>")
+	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@whitegopher>")
 	h("MIME-Version", "1.0")
 	h("Content-Type", "multipart/alternative; boundary="+boundary)
 	b.WriteString("\r\n")

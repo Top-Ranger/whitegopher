@@ -6,7 +6,7 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/index"
+	"github.com/bitflipp/whitegopher/internal/index"
 )
 
 const icalUTC = "20060102T150405Z"

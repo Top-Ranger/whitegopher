@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 type accountData struct {
@@ -55,7 +55,7 @@ func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *s
 		}
 	} else if sess.User.TOTPSecret != "" {
 		d.Enrolling, d.Secret = true, sess.User.TOTPSecret
-		d.URI = template.URL(auth.OTPAuthURI("galdav", sess.User.Username, d.Secret))
+		d.URI = template.URL(auth.OTPAuthURI("whitegopher", sess.User.Username, d.Secret))
 	}
 	if mod != nil {
 		mod(&d)

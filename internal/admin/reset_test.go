@@ -9,10 +9,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/admin"
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/store"
-	"github.com/bitflipp/galdav/internal/storetest"
+	"github.com/bitflipp/whitegopher/internal/admin"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/bitflipp/whitegopher/internal/storetest"
 )
 
 type fakeMail struct {

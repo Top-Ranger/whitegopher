@@ -8,8 +8,8 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/sched"
 )
 
 // calDataSpec is the content of a <C:calendar-data> element in a REPORT's

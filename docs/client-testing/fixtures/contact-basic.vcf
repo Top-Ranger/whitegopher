@@ -1,6 +1,6 @@
 BEGIN:VCARD
 VERSION:3.0
-UID:ct-contact-basic@galdav.test
+UID:ct-contact-basic@whitegopher.test
 FN:Ada Lovelace
 N:Lovelace;Ada;;;
 EMAIL;TYPE=INTERNET,WORK:ada@example.com

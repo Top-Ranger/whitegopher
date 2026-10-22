@@ -1,18 +1,18 @@
 [Unit]
-Description=galdav CalDAV/CardDAV server
-Documentation=https://github.com/bitflipp/galdav
+Description=whitegopher CalDAV/CardDAV server
+Documentation=https://github.com/bitflipp/whitegopher
 After=network-online.target mariadb.service mysql.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=galdav
-Group=galdav
-EnvironmentFile=/etc/galdav/galdav.env
-ExecStart=/usr/local/bin/galdav -config /etc/galdav/config.yaml serve
+User=whitegopher
+Group=whitegopher
+EnvironmentFile=/etc/whitegopher/whitegopher.env
+ExecStart=/usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml serve
 Restart=on-failure
 RestartSec=3
-# galdav drains in-flight requests for up to 15 s on SIGTERM.
+# whitegopher drains in-flight requests for up to 15 s on SIGTERM.
 TimeoutStopSec=20
 
 # The service only reads its config and talks to the network; lock the rest down.

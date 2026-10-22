@@ -47,7 +47,7 @@ func TestSharedCalendar(t *testing.T) {
 	has(t, body, "Team lunch", "/dav/calendars/bob/main/ev1.ics")
 	st, body, _ = b.req("REPORT", "/dav/calendars/bob/main/", `<d:sync-collection xmlns:d="DAV:"><d:sync-token/><d:sync-level>1</d:sync-level><d:prop><d:getetag/></d:prop></d:sync-collection>`)
 	expect(t, st, 207, body)
-	has(t, body, "ev1.ics", "urn:galdav:sync:")
+	has(t, body, "ev1.ics", "urn:whitegopher:sync:")
 
 	// Read-only means read-only.
 	st, body, _ = b.req("PUT", "/dav/calendars/bob/main/new.ics", invite("new", "Sneaky", "0", ""))

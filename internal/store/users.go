@@ -130,13 +130,13 @@ func (s *Store) CreateUserIfNone(u User) (int64, error) {
 	}
 	defer conn.Close()
 	var got sql.NullInt64
-	if err := conn.QueryRowContext(ctx, `SELECT GET_LOCK('galdav_first_user', 10)`).Scan(&got); err != nil {
+	if err := conn.QueryRowContext(ctx, `SELECT GET_LOCK('whitegopher_first_user', 10)`).Scan(&got); err != nil {
 		return 0, err
 	}
 	if got.Int64 != 1 {
 		return 0, errors.New("store: timed out waiting for first-user lock")
 	}
-	defer conn.ExecContext(ctx, `DO RELEASE_LOCK('galdav_first_user')`)
+	defer conn.ExecContext(ctx, `DO RELEASE_LOCK('whitegopher_first_user')`)
 	res, err := conn.ExecContext(ctx,
 		`INSERT INTO users (username, display_name, email, digest_ha1, password_hash, is_admin)
 		 SELECT ?, ?, ?, ?, ?, ? FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM users)`,

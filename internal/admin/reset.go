@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 const resetLifetime = time.Hour
@@ -72,10 +72,10 @@ func (s *Server) sendReset(u store.User) error {
 		return err
 	}
 	link := strings.TrimRight(s.BaseURL, "/") + "/admin/reset?token=" + url.QueryEscape(token)
-	body := fmt.Sprintf("Someone asked to reset the password of the galdav account %q.\n\n"+
+	body := fmt.Sprintf("Someone asked to reset the password of the whitegopher account %q.\n\n"+
 		"To choose a new password, open this link within one hour:\n\n%s\n\n"+
 		"If you did not ask for this, ignore this message; your password stays as it is.\n", u.Username, link)
-	return s.Mailer.SendText(u.Email, "Reset your galdav password", body)
+	return s.Mailer.SendText(u.Email, "Reset your whitegopher password", body)
 }
 
 func (s *Server) resetForm(w http.ResponseWriter, r *http.Request) {

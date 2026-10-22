@@ -5,7 +5,7 @@ exists and for the limits that motivate these items.
 
 ## Next: prove it with real clients
 
-galdav has only been tested against its own test suite. Before adding more
+White Gopher has only been tested against its own test suite. Before adding more
 features, run through DAVx5 (Android), iOS/macOS Calendar and Contacts,
 Thunderbird and Evolution: account setup via `.well-known`, create/edit/delete,
 sync after offline edits, invitations (accept/decline), sharing, free-busy.

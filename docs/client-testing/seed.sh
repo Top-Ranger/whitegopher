@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seed a galdav account with the fixtures used by docs/client-testing.md, so
+# Seed a whitegopher account with the fixtures used by docs/client-testing.md, so
 # every client under test sees identical data.
 #
 #   ./seed.sh https://cal.example.com alice            # prompts for the password

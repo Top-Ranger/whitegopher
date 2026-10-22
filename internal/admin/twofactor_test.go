@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 func TestTwoFactor(t *testing.T) {
@@ -33,7 +33,7 @@ func TestTwoFactor(t *testing.T) {
 	status(t, resp, 303, b)
 	resp, b = e.do(bc, "GET", "/admin/account", nil)
 	status(t, resp, 200, b)
-	contains(t, b, "otpauth://totp/galdav:bob")
+	contains(t, b, "otpauth://totp/whitegopher:bob")
 	bob, _ := e.st.UserByName("bob")
 	if bob.TOTPSecret == "" || bob.TOTPEnabled {
 		t.Fatalf("%+v", bob)

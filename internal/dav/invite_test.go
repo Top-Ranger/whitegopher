@@ -85,7 +85,7 @@ func TestShareInvitationsAndNotifications(t *testing.T) {
 
 	// Dismissing a notification is a DELETE; sync-collection reports it.
 	_, body, _ = b.req("REPORT", bobNotes, `<d:sync-collection xmlns:d="DAV:"><d:sync-token/><d:sync-level>1</d:sync-level><d:prop><d:getetag/></d:prop></d:sync-collection>`)
-	has(t, body, uris[0], "urn:galdav:sync:")
+	has(t, body, uris[0], "urn:whitegopher:sync:")
 	st, body, _ = b.req("DELETE", uris[0], "")
 	expect(t, st, 204, body)
 	st, body, _ = b.req("GET", uris[0], "")

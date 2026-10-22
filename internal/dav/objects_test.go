@@ -91,7 +91,7 @@ func TestCalendarLifecycle(t *testing.T) {
 	body := `<propfind xmlns="DAV:" xmlns:cs="http://calendarserver.org/ns/"><prop><displayname/><getetag/><cs:getctag/></prop></propfind>`
 	st, b, _ = c.req("PROPFIND", "/dav/calendars/alice/work/", body, "Depth", "1")
 	expect(t, st, 207, b)
-	for _, want := range []string{"<D:displayname>Work</D:displayname>", "/dav/calendars/alice/work/ev1.ics", "urn:galdav:sync:2"} {
+	for _, want := range []string{"<D:displayname>Work</D:displayname>", "/dav/calendars/alice/work/ev1.ics", "urn:whitegopher:sync:2"} {
 		if !strings.Contains(b, want) {
 			t.Fatalf("missing %q in %s", want, b)
 		}

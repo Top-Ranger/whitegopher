@@ -8,12 +8,12 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/dav"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
-	"github.com/bitflipp/galdav/internal/storetest"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/dav"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/bitflipp/whitegopher/internal/storetest"
 )
 
 type who struct {
@@ -390,7 +390,7 @@ func (f *fakeSMTP) messages() []string {
 func TestIMIPForExternalAttendees(t *testing.T) {
 	smtpSrv := newFakeSMTP(t)
 	addr := smtpSrv.ln.Addr().(*net.TCPAddr)
-	e := newSchedEnv(t, &sched.SMTP{Host: "127.0.0.1", Port: addr.Port, From: "galdav <noreply@example.com>"})
+	e := newSchedEnv(t, &sched.SMTP{Host: "127.0.0.1", Port: addr.Port, From: "whitegopher <noreply@example.com>"})
 	a := e.alice
 	st, body, _ := a.req("PUT", "/dav/calendars/alice/main/ext.ics", invite("ext", "Lunch, with é", "0", "", carolAtt))
 	expect(t, st, 201, body)
@@ -402,7 +402,7 @@ func TestIMIPForExternalAttendees(t *testing.T) {
 		t.Fatalf("%d messages", len(msgs))
 	}
 	m := msgs[0]
-	has(t, m, "To: carol@external.org", "Reply-To: alice@example.com", "From: \"galdav\" <noreply@example.com>",
+	has(t, m, "To: carol@external.org", "Reply-To: alice@example.com", "From: \"whitegopher\" <noreply@example.com>",
 		"multipart/alternative", "text/calendar; charset=UTF-8; method=REQUEST", "Subject: =?UTF-8?q?Invitation:_Lunch,_with_=C3=A9?=")
 	has(t, m, "BEGIN:VEVENT", "ORGANIZER")
 

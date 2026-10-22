@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/obs"
+	"github.com/bitflipp/whitegopher/internal/obs"
 )
 
 func TestMiddlewareLogsAndCounts(t *testing.T) {
@@ -41,13 +41,13 @@ func TestMiddlewareLogsAndCounts(t *testing.T) {
 	var b strings.Builder
 	m.Write(&b, nil, "test")
 	for _, want := range []string{
-		`galdav_build_info{version="test"} 1`,
-		`galdav_http_requests_total{method="PROPFIND",code="2xx"} 2`,
-		`galdav_http_requests_total{method="PROPFIND",code="4xx"} 1`,
-		`galdav_http_requests_total{method="OTHER",code="2xx"} 1`,
-		`galdav_http_request_duration_seconds_bucket{le="+Inf"} 4`,
-		`galdav_http_request_duration_seconds_count 4`,
-		`galdav_login_failures_total`,
+		`whitegopher_build_info{version="test"} 1`,
+		`whitegopher_http_requests_total{method="PROPFIND",code="2xx"} 2`,
+		`whitegopher_http_requests_total{method="PROPFIND",code="4xx"} 1`,
+		`whitegopher_http_requests_total{method="OTHER",code="2xx"} 1`,
+		`whitegopher_http_request_duration_seconds_bucket{le="+Inf"} 4`,
+		`whitegopher_http_request_duration_seconds_count 4`,
+		`whitegopher_login_failures_total`,
 	} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("metrics lack %s:\n%s", want, b.String())

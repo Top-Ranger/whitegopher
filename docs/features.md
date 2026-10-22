@@ -1,10 +1,10 @@
 # Features and limits
 
-What galdav does today, area by area, each with its known limits. Planned work
+What White Gopher does today, area by area, each with its known limits. Planned work
 is in [roadmap.md](roadmap.md); options are in [configuration.md](configuration.md).
 
 > **Status:** everything below is covered by automated tests against MariaDB,
-> but galdav has **not yet been tried with real clients** (DAVx5, iOS/macOS
+> but White Gopher has **not yet been tried with real clients** (DAVx5, iOS/macOS
 > Calendar and Contacts, Thunderbird, Evolution). Expect client-specific
 > quirks until that has been done; see [client-testing.md](client-testing.md).
 
@@ -121,13 +121,13 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
 - Attendees who are already invited are mailed again (iMIP) only after a
   significant change or when newly added; local attendees' copies are always
   updated, silently. Other edits (title, notes, alarms) do not resend.
-- Inbound iMIP: `galdav imip-receive` reads one email (stdin or a file) and
+- Inbound iMIP: `whitegopher imip-receive` reads one email (stdin or a file) and
   applies a REPLY from an external attendee to the local organizer's copy, or a
   REQUEST/CANCEL from an external organizer to local attendees. The calendar's
   ORGANIZER/ATTENDEE must equal the sender, the receiving mail server must have
   vouched for the sender (`Authentication-Results` with dkim, spf or dmarc
   pass; `scheduling.imip_require_auth`), and a message can never overwrite an
-  event the user organizes or one from a different organizer. galdav does not
+  event the user organizes or one from a different organizer. White Gopher does not
   fetch mail itself: your mail server pipes messages to it (see the deployment
   guide).
 - Edits through a read-write share schedule **on the owner's behalf**:
@@ -217,7 +217,7 @@ administrator view of other users' collections, English only.
 
 ## Importing from Baikal
 
-`galdav import-baikal` copies users (including password hashes), calendars,
+`whitegopher import-baikal` copies users (including password hashes), calendars,
 address books and objects from a Baikal SQLite file or a Baikal MySQL/MariaDB
 database. It is idempotent and has a `-dry-run`. Sync tokens are not carried
 over, so clients do one full resync. Shared calendars, the sabre scheduling
@@ -231,7 +231,7 @@ inbox and Baikal's own settings are not imported.
   stderr (journald-friendly), as text or JSON.
 - Optional structured access log (`log.access`) and Prometheus metrics on a
   separate listener (`metrics.listen`).
-- `galdav version`; `make release` builds static archives for Linux
+- `whitegopher version`; `make release` builds static archives for Linux
   (amd64/arm64/arm), macOS and FreeBSD with checksums.
 - Trusted-proxy handling for `X-Forwarded-For` / `X-Forwarded-Proto`.
 

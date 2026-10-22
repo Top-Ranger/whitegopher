@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//galdav client tests//EN
+PRODID:-//whitegopher client tests//EN
 BEGIN:VTIMEZONE
 TZID:America/New_York
 BEGIN:DAYLIGHT
@@ -19,7 +19,7 @@ RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
 END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
-UID:ct-newyork@galdav.test
+UID:ct-newyork@whitegopher.test
 DTSTAMP:20260101T000000Z
 DTSTART;TZID=America/New_York:@D3@T150000
 DTEND;TZID=America/New_York:@D3@T160000

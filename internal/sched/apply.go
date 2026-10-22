@@ -8,7 +8,7 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // withoutMethod returns a deep copy of an iTIP message minus its METHOD,

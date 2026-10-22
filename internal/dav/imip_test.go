@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/sched"
 )
 
 func imipMail(from, authResults, method, ics string) string {
 	var b strings.Builder
-	b.WriteString("From: " + from + "\r\nTo: galdav@example.com\r\nSubject: x\r\n")
+	b.WriteString("From: " + from + "\r\nTo: whitegopher@example.com\r\nSubject: x\r\n")
 	if authResults != "" {
 		b.WriteString("Authentication-Results: mx.example.com; " + authResults + "\r\n")
 	}

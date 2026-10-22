@@ -134,7 +134,7 @@ func TestSyncCollection(t *testing.T) {
 	_, b = sync(tok2)
 	lacks(t, b, ".ics")
 
-	st, b, _ := c.req("REPORT", "/dav/calendars/alice/s/", `<d:sync-collection xmlns:d="DAV:"><d:sync-token>urn:galdav:sync:999999</d:sync-token><d:sync-level>1</d:sync-level><d:prop/></d:sync-collection>`)
+	st, b, _ := c.req("REPORT", "/dav/calendars/alice/s/", `<d:sync-collection xmlns:d="DAV:"><d:sync-token>urn:whitegopher:sync:999999</d:sync-token><d:sync-level>1</d:sync-level><d:prop/></d:sync-collection>`)
 	expect(t, st, 403, b)
 	has(t, b, "valid-sync-token")
 }

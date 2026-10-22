@@ -60,7 +60,7 @@ type Scheduling struct {
 	// InboxRetentionDays deletes scheduling-inbox items older than this;
 	// 0 keeps them forever.
 	InboxRetentionDays int `yaml:"inbox_retention_days"`
-	// IMIPRequireAuth makes "galdav imip-receive" accept an email only when
+	// IMIPRequireAuth makes "whitegopher imip-receive" accept an email only when
 	// the receiving mail server vouched for the sender (an
 	// Authentication-Results header with dkim, spf or dmarc pass).
 	IMIPRequireAuth bool `yaml:"imip_require_auth"`
@@ -91,7 +91,7 @@ type LoginLimit struct {
 type Proxy struct {
 	// Trusted holds IP addresses or CIDR ranges. Only requests arriving from
 	// these peers may set the client address (X-Forwarded-For) and scheme
-	// (X-Forwarded-Proto) that galdav acts on. Default: loopback.
+	// (X-Forwarded-Proto) that whitegopher acts on. Default: loopback.
 	Trusted []string `yaml:"trusted"`
 }
 
@@ -99,9 +99,9 @@ type SMTP struct {
 	Host     string `yaml:"host"`
 	Port     int    `yaml:"port"`
 	Username string `yaml:"username"`
-	// Password may also come from GALDAV_SMTP_PASSWORD, which takes precedence.
+	// Password may also come from WHITEGOPHER_SMTP_PASSWORD, which takes precedence.
 	Password string `yaml:"password"`
-	// From is the sender, e.g. "galdav <noreply@example.com>".
+	// From is the sender, e.g. "whitegopher <noreply@example.com>".
 	From string `yaml:"from"`
 }
 
@@ -118,8 +118,8 @@ type DB struct {
 	// Driver is kept for old configs; only "mysql" (the default, and also
 	// right for MariaDB) is supported.
 	Driver string `yaml:"driver"`
-	// DSN is a go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/galdav".
-	// The database must exist. The GALDAV_DB_DSN environment variable takes
+	// DSN is a go-sql-driver DSN, e.g. "user:pass@tcp(127.0.0.1:3306)/whitegopher".
+	// The database must exist. The WHITEGOPHER_DB_DSN environment variable takes
 	// precedence, to keep passwords out of the file.
 	DSN string `yaml:"dsn"`
 }
@@ -158,8 +158,8 @@ func Load(path string) (Config, error) {
 
 // Environment variables that override file settings.
 const (
-	DSNEnv          = "GALDAV_DB_DSN"
-	SMTPPasswordEnv = "GALDAV_SMTP_PASSWORD"
+	DSNEnv          = "WHITEGOPHER_DB_DSN"
+	SMTPPasswordEnv = "WHITEGOPHER_SMTP_PASSWORD"
 )
 
 // ApplyEnv applies environment overrides.
@@ -216,7 +216,7 @@ func (c Config) Validate() error {
 		return fmt.Errorf("limits: max_request_mib must be >= 1 and default_quota_mib >= 0")
 	}
 	if c.DB.DSN == "" {
-		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)
+		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"whitegopher:secret@tcp(127.0.0.1:3306)/whitegopher\"", DSNEnv)
 	}
 	return nil
 }

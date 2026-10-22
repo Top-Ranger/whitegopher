@@ -14,10 +14,10 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
-// ErrNotITIP means a message carried no calendar part galdav acts on.
+// ErrNotITIP means a message carried no calendar part whitegopher acts on.
 var ErrNotITIP = errors.New("sched: message has no iTIP calendar part")
 
 // InboundResult describes what became of one received iMIP message.

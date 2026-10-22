@@ -9,10 +9,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "modernc.org/sqlite"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/importer"
-	"github.com/bitflipp/galdav/internal/store"
-	"github.com/bitflipp/galdav/internal/storetest"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/importer"
+	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/bitflipp/whitegopher/internal/storetest"
 )
 
 // Minimal tables with the column names of a Baikal SQLite database.
@@ -111,7 +111,7 @@ func populate(t *testing.T, db *sql.DB) *sql.DB {
 
 func TestImportBaikalSQLite(t *testing.T) { testImport(t, sqliteFixture(t)) }
 
-// Runs only when GALDAV_TEST_MYSQL_DSN is set.
+// Runs only when WHITEGOPHER_TEST_MYSQL_DSN is set.
 func TestImportBaikalMySQL(t *testing.T) { testImport(t, mysqlFixture(t)) }
 
 func testImport(t *testing.T, src *sql.DB) {

@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/netx"
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/netx"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 //go:embed templates/*.html
@@ -31,7 +31,7 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 const (
-	cookieName      = "galdav_session"
+	cookieName      = "whitegopher_session"
 	sessionLifetime = 24 * time.Hour
 	minPasswordLen  = 8
 )

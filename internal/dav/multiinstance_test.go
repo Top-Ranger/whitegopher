@@ -7,13 +7,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/dav"
-	"github.com/bitflipp/galdav/internal/store"
-	"github.com/bitflipp/galdav/internal/storetest"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/dav"
+	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/bitflipp/whitegopher/internal/storetest"
 )
 
-// Several galdav processes may share one database. Everything they rely on
+// Several whitegopher processes may share one database. Everything they rely on
 // lives in the database, so concurrent writes through different instances
 // must stay consistent and be visible to all.
 func TestTwoInstancesShareOneDatabase(t *testing.T) {

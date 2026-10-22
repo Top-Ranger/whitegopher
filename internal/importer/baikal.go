@@ -1,5 +1,5 @@
 // Package importer copies data out of a Baikal (sabre/dav schema) SQLite or
-// MySQL database into a galdav store. It reads the database as plain data and
+// MySQL database into a whitegopher store. It reads the database as plain data and
 // shares no code with Baikal or sabre/dav.
 package importer
 
@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // Result summarises an import run.
@@ -35,7 +35,7 @@ type importer struct {
 	dst *store.Store
 	opt Options
 	res Result
-	// users maps principal URI ("principals/alice") to the galdav user id.
+	// users maps principal URI ("principals/alice") to the whitegopher user id.
 	users map[string]int64
 }
 

@@ -1,9 +1,9 @@
 # Deployment guide
 
-A production galdav is three things: the **galdav binary**, a **MariaDB/MySQL
+A production whitegopher is three things: the **whitegopher binary**, a **MariaDB/MySQL
 database**, and a **reverse proxy** that terminates TLS. This guide sets that up
 on a Linux host with systemd. Commands assume Debian/Ubuntu-style paths; adapt
-as needed. The galdav parts (build, database user with the stated grant,
+as needed. The whitegopher parts (build, database user with the stated grant,
 configuration, user creation, serving, health check, proxy-header handling,
 graceful shutdown) were rehearsed against the real binary and a MariaDB server;
 the root-level steps (creating the system user, `systemd-run`, installing the
@@ -19,23 +19,23 @@ Contents: [requirements](#requirements) · [build](#1-build-and-install) ·
 
 ## Requirements
 
-- Linux host; galdav is a single static binary, no other runtime.
+- Linux host; whitegopher is a single static binary, no other runtime.
 - MariaDB (developed and tested on 13.0) or MySQL (8.x expected to work,
   *untested*), utf8mb4. On the same host or reachable over a private network.
 - A DNS name and a reverse proxy with a TLS certificate (Caddy gets one
   automatically). Calendar and contact clients send passwords with every
-  request: **never expose galdav over plain HTTP.**
+  request: **never expose whitegopher over plain HTTP.**
 - To build: Go 1.26 or newer. (Or build elsewhere and copy the binary.)
 
 ## 1. Build and install
 
 ```sh
-git clone <your galdav repository> && cd galdav
-CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o galdav ./cmd/galdav
-sudo install -m 0755 galdav /usr/local/bin/galdav
+git clone <your whitegopher repository> && cd whitegopher
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o whitegopher ./cmd/whitegopher
+sudo install -m 0755 whitegopher /usr/local/bin/whitegopher
 ```
 
-`make build` does the same with the version stamped in; `galdav version`
+`make build` does the same with the version stamped in; `whitegopher version`
 shows it. Tagged releases publish ready-made archives (`make release`).
 
 The result is a ~15 MB statically linked executable with the web UI embedded.
@@ -47,12 +47,12 @@ Create a database and a dedicated user (replace the password; generate one
 with `openssl rand -hex 24`, avoiding `/` and `@`, which break the DSN):
 
 ```sql
-CREATE DATABASE galdav CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE USER 'galdav'@'127.0.0.1' IDENTIFIED BY 'CHANGE-ME';
-GRANT ALL PRIVILEGES ON galdav.* TO 'galdav'@'127.0.0.1';
+CREATE DATABASE whitegopher CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER 'whitegopher'@'127.0.0.1' IDENTIFIED BY 'CHANGE-ME';
+GRANT ALL PRIVILEGES ON whitegopher.* TO 'whitegopher'@'127.0.0.1';
 ```
 
-`ALL` on that one database is needed because galdav creates and alters its own
+`ALL` on that one database is needed because whitegopher creates and alters its own
 tables at startup and on upgrades. Grant nothing outside it.
 
 Uploads can reach 10 MiB, so make sure `max_allowed_packet` is at least `16M`
@@ -62,14 +62,14 @@ localhost or a private interface only.
 ## 3. Service user and configuration
 
 ```sh
-sudo useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin galdav
-sudo install -d -m 0750 -o root -g galdav /etc/galdav
-sudo install -m 0640 -o root -g galdav deploy/config.example.yaml /etc/galdav/config.yaml
-sudo install -m 0600 -o root -g root     deploy/galdav.env.example  /etc/galdav/galdav.env
-sudoedit /etc/galdav/galdav.env      # put the real database password into GALDAV_DB_DSN
+sudo useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin whitegopher
+sudo install -d -m 0750 -o root -g whitegopher /etc/whitegopher
+sudo install -m 0640 -o root -g whitegopher deploy/config.example.yaml /etc/whitegopher/config.yaml
+sudo install -m 0600 -o root -g root     deploy/whitegopher.env.example  /etc/whitegopher/whitegopher.env
+sudoedit /etc/whitegopher/whitegopher.env      # put the real database password into WHITEGOPHER_DB_DSN
 ```
 
-Review `/etc/galdav/config.yaml`; the defaults in `deploy/config.example.yaml`
+Review `/etc/whitegopher/config.yaml`; the defaults in `deploy/config.example.yaml`
 are right for a proxy on the same host. Two decisions to make **now**:
 
 1. **`realm`** is the HTTP Basic realm. Pick a value (e.g. your domain). If
@@ -86,34 +86,34 @@ first. On an Internet-facing host, create the account from the command line
 **before** starting the service or opening the proxy:
 
 ```sh
-sudo systemd-run --pty --wait --collect --uid=galdav --property=EnvironmentFile=/etc/galdav/galdav.env \
-  /usr/local/bin/galdav -config /etc/galdav/config.yaml useradd -admin -email you@example.com alice
+sudo systemd-run --pty --wait --collect --uid=whitegopher --property=EnvironmentFile=/etc/whitegopher/whitegopher.env \
+  /usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml useradd -admin -email you@example.com alice
 ```
 
 It prompts for the password twice without echo (minimum 8 characters). The
 `-email` is what lets other users invite this account to events. Further users
 are created in the admin UI. (Without `systemd-run`: `export` the variables from
-the env file in a shell and run the same command as the `galdav` user. Do not
+the env file in a shell and run the same command as the `whitegopher` user. Do not
 `source` the env file; its DSN contains parentheses.)
 
 ## 5. Run it with systemd
 
 ```sh
-sudo install -m 0644 deploy/galdav.service /etc/systemd/system/galdav.service
+sudo install -m 0644 deploy/whitegopher.service /etc/systemd/system/whitegopher.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now galdav
-systemctl status galdav
+sudo systemctl enable --now whitegopher
+systemctl status whitegopher
 curl -s http://127.0.0.1:8080/healthz      # prints "ok"
 ```
 
-The unit runs as the unprivileged `galdav` user with a locked-down sandbox,
+The unit runs as the unprivileged `whitegopher` user with a locked-down sandbox,
 restarts on failure and gives a graceful shutdown of up to 15 seconds. Logs go
-to the journal: `journalctl -u galdav -f`. On first start galdav creates its
+to the journal: `journalctl -u whitegopher -f`. On first start whitegopher creates its
 tables; a database error appears there (and the service retries).
 
 ## 6. Put a TLS proxy in front
 
-galdav speaks plain HTTP and trusts `X-Forwarded-For`/`-Proto` only from the
+whitegopher speaks plain HTTP and trusts `X-Forwarded-For`/`-Proto` only from the
 addresses in `proxy.trusted`. The proxy must forward the original `Host`
 header, allow request bodies of at least 10 MiB, and use TLS.
 
@@ -161,7 +161,7 @@ something to sync. The client-testing status is stated in
 
 ## 8. Migrating from Baikal
 
-1. Install galdav as above, but set `realm: "BaikalDAV"` in the config (unless
+1. Install whitegopher as above, but set `realm: "BaikalDAV"` in the config (unless
    you changed Baikal's realm) **before** importing, so imported password hashes
    keep working. Do not create users first.
 2. Stop clients from writing to Baikal (or accept that later changes are
@@ -170,8 +170,8 @@ something to sync. The client-testing status is stated in
    `Specific/db/db.sqlite`; readable by the user running the command):
 
    ```sh
-   sudo systemd-run --pty --wait --collect --uid=galdav --property=EnvironmentFile=/etc/galdav/galdav.env \
-     /usr/local/bin/galdav -config /etc/galdav/config.yaml import-baikal -dry-run /path/to/db.sqlite
+   sudo systemd-run --pty --wait --collect --uid=whitegopher --property=EnvironmentFile=/etc/whitegopher/whitegopher.env \
+     /usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml import-baikal -dry-run /path/to/db.sqlite
    # review the counts and warnings, then run again without -dry-run
    ```
 
@@ -179,7 +179,7 @@ something to sync. The client-testing status is stated in
    The import can be repeated safely.
 4. Imported users keep their passwords. Give them email addresses (admin UI →
    Users) so scheduling works, and make at least one an administrator.
-5. Point clients at galdav. To keep existing client configurations, let the
+5. Point clients at whitegopher. To keep existing client configurations, let the
    proxy rewrite Baikal's URL prefix (*untested*): in nginx,
    `rewrite ^/dav\.php/(.*)$ /dav/$1 last;`. Otherwise re-add the accounts.
    Either way clients do a full resync once.
@@ -189,22 +189,22 @@ settings. A calendar named `inbox` or `outbox` is renamed (reserved names).
 
 ## Inbound email (optional)
 
-Attendees outside galdav answer an invitation by email, and external organizers
-invite your users by email. galdav does not fetch mail; your mail server hands
-each relevant message to `galdav imip-receive`, which reads it from standard
+Attendees outside whitegopher answer an invitation by email, and external organizers
+invite your users by email. whitegopher does not fetch mail; your mail server hands
+each relevant message to `whitegopher imip-receive`, which reads it from standard
 input. Typical wiring (Postfix, Sieve or procmail): for messages that contain a
-`text/calendar` part and are addressed to a galdav user, **copy** them to
+`text/calendar` part and are addressed to a whitegopher user, **copy** them to
 
 ```sh
-/usr/local/bin/galdav -config /etc/galdav/config.yaml imip-receive
+/usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml imip-receive
 ```
 
-run as the `galdav` user (e.g. a Postfix `pipe` transport with `user=galdav`,
+run as the `whitegopher` user (e.g. a Postfix `pipe` transport with `user=whitegopher`,
 or a Sieve/procmail pipe action). The command exits `0` for anything it
 understood or deliberately ignored (it logs why, at warn level) and non-zero for
 real errors such as an unreachable database, so the mail is retried.
 
-Email can be forged, so galdav acts on a message only if all of these hold:
+Email can be forged, so whitegopher acts on a message only if all of these hold:
 the calendar's `ORGANIZER`/`ATTENDEE` is the message's `From`, the topmost
 `Authentication-Results` header (added by **your** mail server, e.g. via
 OpenDKIM/OpenDMARC/Rspamd) shows `dkim=pass`, `spf=pass` or `dmarc=pass`, and
@@ -220,25 +220,25 @@ is matched to them.
 **Backups.** All state is in the database; config and the env file are small.
 
 ```sh
-mysqldump --single-transaction galdav | zstd > galdav-$(date +%F).sql.zst
+mysqldump --single-transaction whitegopher | zstd > whitegopher-$(date +%F).sql.zst
 ```
 
-Back up `/etc/galdav/` as well. Test a restore occasionally:
+Back up `/etc/whitegopher/` as well. Test a restore occasionally:
 load the dump into an empty database, point a second instance at it, and sign
 in. The `sessions` table can be skipped; users just sign in again.
 
 **Upgrades.** Take a backup, build or download the new binary, then:
 
 ```sh
-sudo install -m 0755 galdav /usr/local/bin/galdav
-sudo systemctl restart galdav
+sudo install -m 0755 whitegopher /usr/local/bin/whitegopher
+sudo systemctl restart whitegopher
 ```
 
 Schema migrations run automatically at startup and are forward-only, so the
 backup is also your way back. Run **one** instance during an upgrade.
 
 **Monitoring.** Poll `GET /healthz` (`200 ok`, or `503` when the database is
-unreachable). Watch `journalctl -u galdav` for errors. For Prometheus, set
+unreachable). Watch `journalctl -u whitegopher` for errors. For Prometheus, set
 `metrics.listen` to a loopback or private address and scrape `/metrics`. Disk growth is the
 database: object data plus the change log used for sync.
 
@@ -247,7 +247,7 @@ database: object data plus the change log used for sync.
 startup and daily; clients usually delete processed items sooner. Deleting a user removes their collections,
 shares and sessions.
 
-**Logs and privacy.** By default galdav logs startup, shutdown, errors and
+**Logs and privacy.** By default whitegopher logs startup, shutdown, errors and
 failed logins, not requests. Set `log.access: true` for one structured line per
 request (path without query string, never bodies or passwords), or use the
 proxy's access log.
@@ -255,7 +255,7 @@ proxy's access log.
 ## Security checklist
 
 - TLS only; HSTS at the proxy is a good idea once it works.
-- The database listens on localhost/private network and the `galdav` database
+- The database listens on localhost/private network and the `whitegopher` database
   user has no rights beyond its own database.
 - Create the first admin from the CLI on exposed hosts (section 4).
 - `proxy.trusted` lists only your proxy. If it is empty or wrong, rate limits
@@ -263,27 +263,27 @@ proxy's access log.
 - Failed logins (DAV and admin UI) are rate limited per client address
   (`login_limit`) and logged as `login failed ... ip=...` in the journal, with
   the real client address when `proxy.trusted` is right. `fail2ban` can watch
-  that line (`journalctl -u galdav`) to block repeat offenders at the firewall.
+  that line (`journalctl -u whitegopher`) to block repeat offenders at the firewall.
 - Public links (`/public/<token>`) are readable by anyone who has the address.
   Treat them like a password; replace or turn off a link in the collection's
   page if it leaks.
 - Anyone with an account can query any user's free-busy times (no details)
   unless that user hides it (Account → Privacy). Do not create accounts for
   people you do not want to see that.
-- Keep `/etc/galdav/galdav.env` at mode 0600 and out of backups that are shared.
+- Keep `/etc/whitegopher/whitegopher.env` at mode 0600 and out of backups that are shared.
 - Never change `realm` after users exist.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
-| Service exits at start with `no database configured` | `GALDAV_DB_DSN` missing in the env file, or the unit lacks `EnvironmentFile`. |
+| Service exits at start with `no database configured` | `WHITEGOPHER_DB_DSN` missing in the env file, or the unit lacks `EnvironmentFile`. |
 | `mysql: ... connection refused` / `Access denied` | wrong host/port/password, or the user was created for `localhost` while the DSN uses `127.0.0.1` (the host part must match). |
 | Clients keep asking for the password | wrong password, or the realm changed since the user was created (reset the password). |
 | Admin login says "too many failed attempts" for everyone | the proxy's address is not in `proxy.trusted`, so all users share one client address. |
 | Admin cookies/CSRF problems behind the proxy | the proxy does not send `Host` and `X-Forwarded-Proto` (see section 6). |
 | `413` on large uploads | proxy body-size limit below 10 MiB. |
-| `/.well-known/caldav` does not redirect | the proxy is not forwarding that path to galdav. |
+| `/.well-known/caldav` does not redirect | the proxy is not forwarding that path to whitegopher. |
 | Invitations to colleagues do not arrive | they have no email address on their account, or the address differs from the one invited (matching is case-insensitive and exact). |
 
 Quick manual checks (replace host and credentials):

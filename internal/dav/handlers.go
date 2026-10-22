@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/index"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/index"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 // etagMatcher implements If-Match list semantics (strong comparison).

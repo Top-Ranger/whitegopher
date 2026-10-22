@@ -76,14 +76,14 @@ func (m *Metrics) observe(method string, status int, d time.Duration) {
 // Write renders the metrics in the Prometheus text exposition format. db, if
 // non-nil, contributes connection-pool gauges; version labels the build info.
 func (m *Metrics) Write(w io.Writer, db *sql.DB, version string) {
-	fmt.Fprintf(w, "# TYPE galdav_build_info gauge\ngaldav_build_info{version=%q} 1\n", version)
-	fmt.Fprintf(w, "# TYPE galdav_uptime_seconds gauge\ngaldav_uptime_seconds %d\n", int64(time.Since(m.started).Seconds()))
-	fmt.Fprintf(w, "# TYPE galdav_login_failures_total counter\ngaldav_login_failures_total %d\n", LoginFailures.value())
-	fmt.Fprintf(w, "# TYPE galdav_logins_blocked_total counter\ngaldav_logins_blocked_total %d\n", LoginsBlocked.value())
+	fmt.Fprintf(w, "# TYPE whitegopher_build_info gauge\nwhitegopher_build_info{version=%q} 1\n", version)
+	fmt.Fprintf(w, "# TYPE whitegopher_uptime_seconds gauge\nwhitegopher_uptime_seconds %d\n", int64(time.Since(m.started).Seconds()))
+	fmt.Fprintf(w, "# TYPE whitegopher_login_failures_total counter\nwhitegopher_login_failures_total %d\n", LoginFailures.value())
+	fmt.Fprintf(w, "# TYPE whitegopher_logins_blocked_total counter\nwhitegopher_logins_blocked_total %d\n", LoginsBlocked.value())
 	if db != nil {
 		st := db.Stats()
-		fmt.Fprintf(w, "# TYPE galdav_db_connections_open gauge\ngaldav_db_connections_open %d\n", st.OpenConnections)
-		fmt.Fprintf(w, "# TYPE galdav_db_connections_in_use gauge\ngaldav_db_connections_in_use %d\n", st.InUse)
+		fmt.Fprintf(w, "# TYPE whitegopher_db_connections_open gauge\nwhitegopher_db_connections_open %d\n", st.OpenConnections)
+		fmt.Fprintf(w, "# TYPE whitegopher_db_connections_in_use gauge\nwhitegopher_db_connections_in_use %d\n", st.InUse)
 	}
 
 	m.mu.Lock()
@@ -105,19 +105,19 @@ func (m *Metrics) Write(w io.Writer, db *sql.DB, version string) {
 	sum, count := m.sum, m.count
 	m.mu.Unlock()
 
-	fmt.Fprint(w, "# TYPE galdav_http_requests_total counter\n")
+	fmt.Fprint(w, "# TYPE whitegopher_http_requests_total counter\n")
 	for i, k := range keys {
-		fmt.Fprintf(w, "galdav_http_requests_total{method=%q,code=%q} %d\n", k.method, k.class, counts[i])
+		fmt.Fprintf(w, "whitegopher_http_requests_total{method=%q,code=%q} %d\n", k.method, k.class, counts[i])
 	}
-	fmt.Fprint(w, "# TYPE galdav_http_request_duration_seconds histogram\n")
+	fmt.Fprint(w, "# TYPE whitegopher_http_request_duration_seconds histogram\n")
 	var cum int64
 	for i, le := range buckets {
 		cum += bucket[i]
-		fmt.Fprintf(w, "galdav_http_request_duration_seconds_bucket{le=%q} %d\n", strconv.FormatFloat(le, 'g', -1, 64), cum)
+		fmt.Fprintf(w, "whitegopher_http_request_duration_seconds_bucket{le=%q} %d\n", strconv.FormatFloat(le, 'g', -1, 64), cum)
 	}
 	cum += bucket[len(buckets)]
-	fmt.Fprintf(w, "galdav_http_request_duration_seconds_bucket{le=\"+Inf\"} %d\n", cum)
-	fmt.Fprintf(w, "galdav_http_request_duration_seconds_sum %g\ngaldav_http_request_duration_seconds_count %d\n", sum, count)
+	fmt.Fprintf(w, "whitegopher_http_request_duration_seconds_bucket{le=\"+Inf\"} %d\n", cum)
+	fmt.Fprintf(w, "whitegopher_http_request_duration_seconds_sum %g\nwhitegopher_http_request_duration_seconds_count %d\n", sum, count)
 }
 
 // Handler serves the metrics.

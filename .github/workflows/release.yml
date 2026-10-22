@@ -28,7 +28,7 @@ jobs:
           go-version-file: go.mod
       - name: Test
         env:
-          GALDAV_TEST_MYSQL_DSN: root@tcp(127.0.0.1:3306)/
+          WHITEGOPHER_TEST_MYSQL_DSN: root@tcp(127.0.0.1:3306)/
         run: make test
       - name: Build
         run: make release VERSION=${{ github.ref_name }}

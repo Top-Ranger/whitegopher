@@ -1,8 +1,8 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//galdav client tests//EN
+PRODID:-//whitegopher client tests//EN
 BEGIN:VEVENT
-UID:ct-allday@galdav.test
+UID:ct-allday@whitegopher.test
 DTSTAMP:20260101T000000Z
 DTSTART;VALUE=DATE:@D2@
 DTEND;VALUE=DATE:@D4@

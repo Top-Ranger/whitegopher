@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/obs"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/obs"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {

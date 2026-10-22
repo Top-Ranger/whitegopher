@@ -1,4 +1,4 @@
-// Command galdav is a CalDAV/CardDAV server.
+// Command whitegopher is a CalDAV/CardDAV server.
 package main
 
 import (
@@ -19,16 +19,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/admin"
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/config"
-	"github.com/bitflipp/galdav/internal/dav"
-	"github.com/bitflipp/galdav/internal/importer"
-	"github.com/bitflipp/galdav/internal/netx"
-	"github.com/bitflipp/galdav/internal/obs"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/admin"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/config"
+	"github.com/bitflipp/whitegopher/internal/dav"
+	"github.com/bitflipp/whitegopher/internal/importer"
+	"github.com/bitflipp/whitegopher/internal/netx"
+	"github.com/bitflipp/whitegopher/internal/obs"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/term"
 	_ "modernc.org/sqlite"
@@ -74,23 +74,23 @@ func buildVersion() string {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "galdav:", err)
+		fmt.Fprintln(os.Stderr, "whitegopher:", err)
 		os.Exit(1)
 	}
 }
 
 func run(args []string) error {
-	fs := flag.NewFlagSet("galdav", flag.ContinueOnError)
+	fs := flag.NewFlagSet("whitegopher", flag.ContinueOnError)
 	cfgPath := fs.String("config", "config.yaml", "path to config file")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: galdav [-config file] <serve|version|imip-receive|useradd [-admin] [-email ADDRESS] NAME|import-baikal [-dry-run] SQLITE_FILE|-mysql DSN>")
+		fmt.Fprintln(os.Stderr, "usage: whitegopher [-config file] <serve|version|imip-receive|useradd [-admin] [-email ADDRESS] NAME|import-baikal [-dry-run] SQLITE_FILE|-mysql DSN>")
 	}
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if *showVersion || (fs.NArg() == 1 && fs.Arg(0) == "version") {
-		fmt.Println("galdav", buildVersion(), runtime.Version(), runtime.GOOS+"/"+runtime.GOARCH)
+		fmt.Println("whitegopher", buildVersion(), runtime.Version(), runtime.GOOS+"/"+runtime.GOARCH)
 		return nil
 	}
 	if fs.NArg() == 0 {

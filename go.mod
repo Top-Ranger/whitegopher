@@ -1,4 +1,4 @@
-module github.com/bitflipp/galdav
+module github.com/bitflipp/whitegopher
 
 go 1.26.0
 

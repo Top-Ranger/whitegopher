@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/galdav/internal/admin"
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/dav"
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
-	"github.com/bitflipp/galdav/internal/storetest"
+	"github.com/bitflipp/whitegopher/internal/admin"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/dav"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/bitflipp/whitegopher/internal/storetest"
 )
 
 type env struct {
@@ -201,7 +201,7 @@ func TestSecurity(t *testing.T) {
 	status(t, resp, 303, b)
 	var sessCookie *http.Cookie
 	for _, c := range resp.Cookies() {
-		if c.Name == "galdav_session" {
+		if c.Name == "whitegopher_session" {
 			sessCookie = c
 		}
 	}
@@ -525,7 +525,7 @@ func TestTrustedProxies(t *testing.T) {
 	}
 	secure := func(resp *http.Response) bool {
 		for _, c := range resp.Cookies() {
-			if c.Name == "galdav_session" {
+			if c.Name == "whitegopher_session" {
 				return c.Secure
 			}
 		}

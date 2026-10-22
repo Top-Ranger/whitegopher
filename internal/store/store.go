@@ -32,7 +32,7 @@ type Store struct {
 }
 
 // Open opens (and migrates) the database named by a go-sql-driver DSN such
-// as "user:pass@tcp(127.0.0.1:3306)/galdav". The database must exist.
+// as "user:pass@tcp(127.0.0.1:3306)/whitegopher". The database must exist.
 func Open(dsn string) (*Store, error) {
 	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {

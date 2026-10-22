@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 func dav(local string) xml.Name  { return xml.Name{Space: nsDAV, Local: local} }
@@ -33,7 +33,7 @@ func areaOf(kind string) string {
 	return "addressbooks"
 }
 
-func syncToken(seq int64) string { return fmt.Sprintf("urn:galdav:sync:%d", seq) }
+func syncToken(seq int64) string { return fmt.Sprintf("urn:whitegopher:sync:%d", seq) }
 
 const (
 	privAll = "<D:privilege><D:read/></D:privilege><D:privilege><D:write/></D:privilege>" +

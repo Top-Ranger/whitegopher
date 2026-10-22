@@ -1,4 +1,4 @@
-# galdav
+# White Gopher
 
 A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
 MIT licensed. A from-scratch alternative to [Baikal](https://sabre.io/baikal/)
@@ -39,10 +39,10 @@ one-time importer for Baikal databases.
 Needs Go 1.26+ and a MariaDB/MySQL database you can write to:
 
 ```sh
-mysql -e "CREATE DATABASE galdav CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
-export GALDAV_DB_DSN='root@tcp(127.0.0.1:3306)/galdav'
-go run ./cmd/galdav useradd -admin -email me@example.com alice   # prompts for a password
-go run ./cmd/galdav serve                                        # http://localhost:8080/admin/
+mysql -e "CREATE DATABASE whitegopher CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
+export WHITEGOPHER_DB_DSN='root@tcp(127.0.0.1:3306)/whitegopher'
+go run ./cmd/whitegopher useradd -admin -email me@example.com alice   # prompts for a password
+go run ./cmd/whitegopher serve                                        # http://localhost:8080/admin/
 ```
 
 For a real installation follow [docs/deployment.md](docs/deployment.md).
@@ -50,7 +50,7 @@ For a real installation follow [docs/deployment.md](docs/deployment.md).
 ## Development
 
 ```
-cmd/galdav/         CLI: serve, useradd, import-baikal
+cmd/whitegopher/         CLI: serve, useradd, import-baikal
 internal/config/    YAML config and environment overrides
 internal/store/     MySQL/MariaDB store, embedded migrations
 internal/auth/      password hashing, Basic auth middleware
@@ -67,14 +67,14 @@ docs/               documentation
 ```
 
 Tests need a MySQL/MariaDB server where they may create and drop
-`galdav_test_*` databases. Without it, database tests **fail** with an
+`whitegopher_test_*` databases. Without it, database tests **fail** with an
 explanatory message, so a green run always means they ran:
 
 ```sh
-GALDAV_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
+WHITEGOPHER_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
 ```
 
-(`GALDAV_TEST_SKIP_DB=1` skips them on purpose; the pure unit tests in
+(`WHITEGOPHER_TEST_SKIP_DB=1` skips them on purpose; the pure unit tests in
 `internal/index` and `internal/sched` need no database.) Use `-race` when
 touching concurrency.
 
@@ -83,6 +83,6 @@ read-only source for the Baikal importer.
 
 ## Dependencies and licences
 
-galdav is MIT. Direct dependencies are MIT/BSD/Apache-2.0 licensed except
+White Gopher is MIT. Direct dependencies are MIT/BSD/Apache-2.0 licensed except
 `github.com/go-sql-driver/mysql`, which is MPL-2.0 (file-level copyleft: it
-only affects modifications to that library's own files, not galdav).
+only affects modifications to that library's own files, not White Gopher).

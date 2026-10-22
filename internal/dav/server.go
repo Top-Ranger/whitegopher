@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bitflipp/galdav/internal/auth"
-	"github.com/bitflipp/galdav/internal/netx"
-	"github.com/bitflipp/galdav/internal/sched"
-	"github.com/bitflipp/galdav/internal/sharing"
-	"github.com/bitflipp/galdav/internal/store"
+	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/netx"
+	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/bitflipp/whitegopher/internal/sharing"
+	"github.com/bitflipp/whitegopher/internal/store"
 )
 
 type Server struct {
@@ -116,7 +116,7 @@ func (s *Server) serveSiteRoot(w http.ResponseWriter, r *http.Request) {
 	}
 	site := resource{href: "/", props: map[xml.Name]string{
 		dav("resourcetype"):           "<D:collection/>",
-		dav("displayname"):            "galdav",
+		dav("displayname"):            "whitegopher",
 		dav("current-user-principal"): hrefXML(s.principalHref(u.Username)),
 	}}
 	out := []resource{site}
