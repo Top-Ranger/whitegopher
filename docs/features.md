@@ -30,9 +30,12 @@ or the `/dav/` URL); objects are limited to 10 MiB (compiled in).
   user's first login, which replaces it with argon2id.
 - Users only reach their own namespace (and collections shared with them).
 
-Limits: DAV logins
-are not rate limited (the admin UI's are): use `fail2ban` or the reverse proxy.
-No LDAP/OIDC, no app passwords, no two-factor authentication.
+- Failed logins, on DAV and in the admin UI, are logged (`login failed` with
+  `user`, `ip` and `via`) and rate limited per client address (`login_limit`,
+  default 10 per 15 minutes; `429` with `Retry-After`). The address is the
+  rightmost `X-Forwarded-For` entry that is not a trusted proxy.
+
+Limits: the rate limit is in memory and per process. No LDAP/OIDC, no app passwords, no two-factor authentication.
 
 ## Calendars and contacts
 

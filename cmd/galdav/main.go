@@ -22,6 +22,7 @@ import (
 	"github.com/bitflipp/galdav/internal/config"
 	"github.com/bitflipp/galdav/internal/dav"
 	"github.com/bitflipp/galdav/internal/importer"
+	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/sched"
 	"github.com/bitflipp/galdav/internal/store"
 	_ "github.com/go-sql-driver/mysql"
@@ -75,7 +76,12 @@ func run(args []string) error {
 
 func serve(cfg config.Config, st *store.Store) error {
 	basePath := strings.TrimRight(cfg.BasePath, "/")
-	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm}
+	proxies, err := cfg.TrustedProxies()
+	if err != nil {
+		return err
+	}
+	limiter := netx.NewLimiter(cfg.LoginLimit.Failures, cfg.LoginLimit.Window)
+	authn := &auth.Authenticator{Store: st, Realm: cfg.Realm, Proxies: proxies, Limiter: limiter}
 	var mailer sched.Mailer
 	if cfg.SMTP.Host != "" {
 		mailer = &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
@@ -95,11 +101,7 @@ func serve(cfg config.Config, st *store.Store) error {
 		io.WriteString(w, "ok\n")
 	})
 	if cfg.Admin.Enabled {
-		proxies, err := cfg.TrustedProxies()
-		if err != nil {
-			return err
-		}
-		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: proxies}).Handler()
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: proxies, Limiter: limiter}).Handler()
 		if err != nil {
 			return err
 		}

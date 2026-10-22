@@ -17,6 +17,12 @@ realm: "galdav"
 proxy:
   trusted: ["127.0.0.1", "::1"]
 
+# Refuse a client address after this many failed logins within the window
+# (DAV and admin UI share the count). Failures are logged with the address.
+login_limit:
+  failures: 10
+  window: 15m
+
 admin:
   enabled: true
 

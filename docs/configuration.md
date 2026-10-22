@@ -32,6 +32,10 @@ admin:
 proxy:
   trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe
 
+login_limit:             # failed logins (DAV and admin UI) per client address
+  failures: 10           # refuse further attempts after this many; 0 disables
+  window: 15m
+
 smtp:                    # optional iMIP email for attendees without an account
   host: ""               # empty disables email delivery
   port: 587              # STARTTLS is used when the server offers it
@@ -54,7 +58,8 @@ smtp:                    # optional iMIP email for attendees without an account
 - **`proxy.trusted`** matters whenever a reverse proxy is in front. Only
   requests from these peers may set the client address (`X-Forwarded-For`)
   and scheme (`X-Forwarded-Proto`); everyone else's headers are ignored. The
-  address drives login rate limiting and the `Secure` cookie flag. If your
+  address drives login rate limiting, failed-login logging and the `Secure`
+  cookie flag. If your
   proxy is on another host, add its address; if it is missing, all users appear
   to come from the proxy and share one rate limit.
 - **`base_path`** changes where clients must connect; `/.well-known/*` redirects

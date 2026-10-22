@@ -12,7 +12,6 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/bitflipp/galdav/internal/auth"
+	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -43,9 +43,11 @@ type Server struct {
 	// TrustedProxies are the peers whose X-Forwarded-For/-Proto headers are
 	// believed; for anyone else those headers are ignored.
 	TrustedProxies []netip.Prefix
+	// Limiter throttles failed logins per client address. Defaults to 10
+	// failures per 15 minutes.
+	Limiter *netx.Limiter
 
-	pages   map[string]*template.Template
-	limiter *limiter
+	pages map[string]*template.Template
 }
 
 type session struct {
@@ -75,8 +77,10 @@ var flashes = map[string]string{
 }
 
 func (s *Server) init() error {
+	if s.Limiter == nil {
+		s.Limiter = netx.NewLimiter(10, 15*time.Minute)
+	}
 	s.pages = map[string]*template.Template{}
-	s.limiter = newLimiter(10, 15*time.Minute)
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
 		return err
@@ -185,30 +189,6 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func (s *Server) peerTrusted(r *http.Request) bool {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	a, err := netip.ParseAddr(host)
-	return err == nil && s.trusted(a.Unmap())
-}
-
-func (s *Server) trusted(a netip.Addr) bool {
-	for _, p := range s.TrustedProxies {
-		if p.Contains(a) {
-			return true
-		}
-	}
-	return false
-}
-
-// isHTTPS reports whether the client reached us over TLS, directly or via a
-// trusted proxy.
-func (s *Server) isHTTPS(r *http.Request) bool {
-	return r.TLS != nil || (s.peerTrusted(r) && strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https"))
-}
-
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.User) error {
 	tok := randomHex(32)
 	exp := time.Now().Add(sessionLifetime)
@@ -217,7 +197,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.Us
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: tok, Path: "/admin/", Expires: exp,
-		HttpOnly: true, Secure: s.isHTTPS(r), SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: s.proxies().IsHTTPS(r), SameSite: http.SameSiteLaxMode,
 	})
 	return nil
 }
@@ -277,7 +257,7 @@ func (s *Server) adminOnly(h handler) http.HandlerFunc {
 
 func (s *Server) davURL(r *http.Request) string {
 	scheme := "http"
-	if s.isHTTPS(r) {
+	if s.proxies().IsHTTPS(r) {
 		scheme = "https"
 	}
 	return scheme + "://" + r.Host + s.DAVPath + "/"
@@ -310,28 +290,8 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 
 func notFound(w http.ResponseWriter) { http.Error(w, "not found", http.StatusNotFound) }
 
-// clientIP returns the address to attribute a request to. Behind a trusted
-// proxy that is the rightmost X-Forwarded-For entry that is not itself a
-// trusted proxy; otherwise the direct peer.
-func (s *Server) clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if !s.peerTrusted(r) {
-		return host
-	}
-	parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
-	for i := len(parts) - 1; i >= 0; i-- {
-		a, err := netip.ParseAddr(strings.TrimSpace(parts[i]))
-		if err != nil {
-			return host // malformed header: fall back to the peer
-		}
-		if !s.trusted(a.Unmap()) {
-			return a.Unmap().String()
-		}
-	}
-	return host
-}
+func (s *Server) clientIP(r *http.Request) string { return s.proxies().ClientIP(r) }
+
+func (s *Server) proxies() netx.Proxies { return netx.Proxies(s.TrustedProxies) }
 
 func isNotFound(err error) bool { return errors.Is(err, store.ErrNotFound) }

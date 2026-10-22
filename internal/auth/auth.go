@@ -9,12 +9,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 
+	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/store"
 )
 
@@ -66,6 +68,11 @@ func verifyArgon(phc, password string) bool {
 type Authenticator struct {
 	Store *store.Store
 	Realm string
+	// Proxies and Limiter are optional. Proxies decide which X-Forwarded-For
+	// is believed when attributing failed logins; Limiter throttles them per
+	// client address.
+	Proxies netx.Proxies
+	Limiter *netx.Limiter
 }
 
 // Verify checks a password. Accounts that only have an imported HA1 are
@@ -106,14 +113,26 @@ func UserFrom(ctx context.Context) (store.User, bool) {
 	return u, ok
 }
 
-// Middleware requires HTTP Basic credentials.
+// Middleware requires HTTP Basic credentials. Failed attempts are logged with
+// the client address and count towards the rate limit.
 func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := a.Proxies.ClientIP(r)
+		if !a.Limiter.Allowed(ip) {
+			slog.Warn("login blocked", "via", "dav", "ip", ip)
+			w.Header().Set("Retry-After", "900")
+			http.Error(w, "too many failed login attempts", http.StatusTooManyRequests)
+			return
+		}
 		if name, pass, ok := r.BasicAuth(); ok {
-			if u, good := a.Verify(name, pass); good {
+			u, good := a.Verify(name, pass)
+			if good {
+				a.Limiter.Reset(ip)
 				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 				return
 			}
+			a.Limiter.Fail(ip)
+			slog.Warn("login failed", "via", "dav", "user", name, "ip", ip)
 		}
 		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Basic realm=%q, charset="UTF-8"`, a.Realm))
 		http.Error(w, "unauthorized", http.StatusUnauthorized)

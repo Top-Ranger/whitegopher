@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/netip"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,8 +25,17 @@ type Config struct {
 	// SMTP, when Host is set, delivers invitations to attendees who have no
 	// account here, as iMIP email.
 	SMTP SMTP `yaml:"smtp"`
+	// LoginLimit throttles failed logins (DAV and admin UI) per client address.
+	LoginLimit LoginLimit `yaml:"login_limit"`
 	// Proxy lists reverse proxies whose X-Forwarded-* headers are believed.
 	Proxy Proxy `yaml:"proxy"`
+}
+
+type LoginLimit struct {
+	// Failures is how many failed logins a client address may make within
+	// Window before being refused. 0 disables the limit.
+	Failures int           `yaml:"failures"`
+	Window   time.Duration `yaml:"window"`
 }
 
 type Proxy struct {
@@ -62,13 +72,14 @@ type DB struct {
 
 func Default() Config {
 	return Config{
-		Listen:   ":8080",
-		Realm:    "BaikalDAV",
-		BasePath: "/dav",
-		Admin:    Admin{Enabled: true},
-		SMTP:     SMTP{Port: 587},
-		Proxy:    Proxy{Trusted: []string{"127.0.0.1", "::1"}},
-		DB:       DB{Driver: "mysql"},
+		Listen:     ":8080",
+		Realm:      "BaikalDAV",
+		BasePath:   "/dav",
+		Admin:      Admin{Enabled: true},
+		SMTP:       SMTP{Port: 587},
+		LoginLimit: LoginLimit{Failures: 10, Window: 15 * time.Minute},
+		Proxy:      Proxy{Trusted: []string{"127.0.0.1", "::1"}},
+		DB:         DB{Driver: "mysql"},
 	}
 }
 
@@ -130,6 +141,9 @@ func (c Config) Validate() error {
 	}
 	if _, err := c.TrustedProxies(); err != nil {
 		return err
+	}
+	if c.LoginLimit.Failures < 0 || (c.LoginLimit.Failures > 0 && c.LoginLimit.Window <= 0) {
+		return fmt.Errorf("login_limit: failures must be >= 0 and window positive")
 	}
 	if c.DB.DSN == "" {
 		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)

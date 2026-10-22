@@ -2,12 +2,16 @@ package auth_test
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bitflipp/galdav/internal/auth"
+	"github.com/bitflipp/galdav/internal/netx"
 	"github.com/bitflipp/galdav/internal/store"
 	"github.com/bitflipp/galdav/internal/storetest"
 )
@@ -85,5 +89,49 @@ func TestImportedHA1IsUpgradedAndCleared(t *testing.T) {
 	}
 	if _, ok := a.Verify("alice", "secret"); !ok {
 		t.Fatal("argon2 login failed")
+	}
+}
+
+func TestDAVLoginLimitAndLogging(t *testing.T) {
+	var logs strings.Builder
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	st := storetest.New(t)
+	hash, _ := auth.HashPassword("secret")
+	st.CreateUser(store.User{Username: "alice", PasswordHash: hash})
+	a := &auth.Authenticator{
+		Store: st, Realm: "R",
+		Proxies: netx.Proxies{netip.MustParsePrefix("127.0.0.0/8")},
+		Limiter: netx.NewLimiter(3, time.Minute),
+	}
+	ts := httptest.NewServer(a.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})))
+	t.Cleanup(ts.Close)
+	try := func(pass, xff string) int {
+		req, _ := http.NewRequest("GET", ts.URL, nil)
+		req.SetBasicAuth("alice", pass)
+		req.Header.Set("X-Forwarded-For", xff)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+	for i := 0; i < 3; i++ {
+		if c := try("wrong", "203.0.113.5"); c != 401 {
+			t.Fatalf("attempt %d: %d", i, c)
+		}
+	}
+	if c := try("secret", "203.0.113.5"); c != 429 {
+		t.Fatalf("not limited: %d", c)
+	}
+	if c := try("secret", "203.0.113.6"); c != 200 {
+		t.Fatalf("other client blocked: %d", c)
+	}
+	out := logs.String()
+	if !strings.Contains(out, "login failed") || !strings.Contains(out, "ip=203.0.113.5") || !strings.Contains(out, "user=alice") {
+		t.Fatalf("failed login not logged with the forwarded address:\n%s", out)
 	}
 }

@@ -225,8 +225,10 @@ use the proxy's access log if you need request logs.
 - Create the first admin from the CLI on exposed hosts (section 4).
 - `proxy.trusted` lists only your proxy. If it is empty or wrong, rate limits
   and cookie flags are wrong too.
-- DAV logins are **not** rate limited by galdav; add `fail2ban` on the proxy log
-  (repeated `401`s on `/dav/`) or a proxy rate limit.
+- Failed logins (DAV and admin UI) are rate limited per client address
+  (`login_limit`) and logged as `login failed ... ip=...` in the journal, with
+  the real client address when `proxy.trusted` is right. `fail2ban` can watch
+  that line (`journalctl -u galdav`) to block repeat offenders at the firewall.
 - Anyone with an account can query any user's free-busy times (no details).
   Do not create accounts for people you do not want to see that.
 - Keep `/etc/galdav/galdav.env` at mode 0600 and out of backups that are shared.

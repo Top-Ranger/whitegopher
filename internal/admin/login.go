@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -22,7 +23,8 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ip := s.clientIP(r)
-	if !s.limiter.allowed(ip) {
+	if !s.Limiter.Allowed(ip) {
+		slog.Warn("login blocked", "via", "admin", "ip", ip)
 		w.Header().Set("Retry-After", "900")
 		s.render(w, r, "login", http.StatusTooManyRequests, page{Title: "Sign in", Error: "Too many failed attempts. Try again later."})
 		return
@@ -30,11 +32,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	name, pass := r.PostFormValue("username"), r.PostFormValue("password")
 	u, ok := s.Auth.Verify(name, pass)
 	if !ok {
-		s.limiter.fail(ip)
+		s.Limiter.Fail(ip)
+		slog.Warn("login failed", "via", "admin", "user", name, "ip", ip)
 		s.render(w, r, "login", http.StatusUnauthorized, page{Title: "Sign in", Error: "Wrong username or password."})
 		return
 	}
-	s.limiter.reset(ip)
+	s.Limiter.Reset(ip)
 	if err := s.startSession(w, r, u); err != nil {
 		s.fail(w, err)
 		return
