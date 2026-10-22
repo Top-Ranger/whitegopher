@@ -21,13 +21,20 @@ type User struct {
 	// DefaultCalendar is the slug of the calendar receiving invitations;
 	// empty means the first calendar.
 	DefaultCalendar string
+	// QuotaBytes caps the object data the user owns. nil means the server
+	// default; 0 means unlimited.
+	QuotaBytes *int64
 }
 
-const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar`
+const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes`
 
 func scanUser(sc interface{ Scan(...any) error }) (User, error) {
 	var u User
-	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar)
+	var quota sql.NullInt64
+	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota)
+	if quota.Valid {
+		u.QuotaBytes = &quota.Int64
+	}
 	return u, err
 }
 
@@ -138,8 +145,8 @@ func (s *Store) CreateUserIfNone(u User) (int64, error) {
 
 // UpdateUser writes the profile fields of u.
 func (s *Store) UpdateUser(u User) error {
-	_, err := s.DB.Exec(`UPDATE users SET display_name = ?, email = ?, is_admin = ? WHERE id = ?`,
-		u.DisplayName, normEmail(u.Email), u.IsAdmin, u.ID)
+	_, err := s.DB.Exec(`UPDATE users SET display_name = ?, email = ?, is_admin = ?, quota_bytes = ? WHERE id = ?`,
+		u.DisplayName, normEmail(u.Email), u.IsAdmin, u.QuotaBytes, u.ID)
 	return err
 }
 

@@ -25,10 +25,20 @@ type Config struct {
 	// SMTP, when Host is set, delivers invitations to attendees who have no
 	// account here, as iMIP email.
 	SMTP SMTP `yaml:"smtp"`
+	// Limits bounds request sizes and per-user storage.
+	Limits Limits `yaml:"limits"`
 	// LoginLimit throttles failed logins (DAV and admin UI) per client address.
 	LoginLimit LoginLimit `yaml:"login_limit"`
 	// Proxy lists reverse proxies whose X-Forwarded-* headers are believed.
 	Proxy Proxy `yaml:"proxy"`
+}
+
+type Limits struct {
+	// MaxRequestMiB caps a request body (and so the size of one object).
+	MaxRequestMiB int64 `yaml:"max_request_mib"`
+	// DefaultQuotaMiB caps the object data each user owns; 0 is unlimited.
+	// Administrators can override it per user.
+	DefaultQuotaMiB int64 `yaml:"default_quota_mib"`
 }
 
 type LoginLimit struct {
@@ -77,6 +87,7 @@ func Default() Config {
 		BasePath:   "/dav",
 		Admin:      Admin{Enabled: true},
 		SMTP:       SMTP{Port: 587},
+		Limits:     Limits{MaxRequestMiB: 10},
 		LoginLimit: LoginLimit{Failures: 10, Window: 15 * time.Minute},
 		Proxy:      Proxy{Trusted: []string{"127.0.0.1", "::1"}},
 		DB:         DB{Driver: "mysql"},
@@ -144,6 +155,9 @@ func (c Config) Validate() error {
 	}
 	if c.LoginLimit.Failures < 0 || (c.LoginLimit.Failures > 0 && c.LoginLimit.Window <= 0) {
 		return fmt.Errorf("login_limit: failures must be >= 0 and window positive")
+	}
+	if c.Limits.MaxRequestMiB < 1 || c.Limits.DefaultQuotaMiB < 0 {
+		return fmt.Errorf("limits: max_request_mib must be >= 1 and default_quota_mib >= 0")
 	}
 	if c.DB.DSN == "" {
 		return fmt.Errorf("no database configured: set db.dsn (or %s), e.g. \"galdav:secret@tcp(127.0.0.1:3306)/galdav\"", DSNEnv)

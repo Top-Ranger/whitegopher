@@ -261,6 +261,9 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		s.fail(w, r, err)
 		return
 	}
+	if !s.withinQuota(w, r, u, c, t.uri, int64(len(data))) {
+		return
+	}
 	var p index.Parsed
 	var bad string
 	if isCal {
@@ -329,6 +332,40 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	} else {
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// withinQuota checks that storing size bytes at uri in c keeps the collection
+// owner within their quota, answering 507 (RFC 4331) otherwise. The check is
+// not atomic with the write, so concurrent uploads can overshoot slightly.
+func (s *Server) withinQuota(w http.ResponseWriter, r *http.Request, u store.User, c store.Collection, uri string, size int64) bool {
+	owner := u
+	if c.Access != "" {
+		var err error
+		if owner, err = s.Store.UserByID(c.OwnerID); err != nil {
+			s.fail(w, r, err)
+			return false
+		}
+	}
+	limit := s.quotaFor(owner)
+	if limit <= 0 {
+		return true
+	}
+	used, err := s.Store.UsageBytes(owner.ID)
+	if err == nil {
+		var old int64
+		if old, err = s.Store.ObjectSize(c.ID, uri); err == nil {
+			used -= old
+		}
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return false
+	}
+	if used+size > limit {
+		writeError(w, http.StatusInsufficientStorage, "<D:quota-not-exceeded/>")
+		return false
+	}
+	return true
 }
 
 // collectionForWrite is lookupCollection with 409 for a missing parent.

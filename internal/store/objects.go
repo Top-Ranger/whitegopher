@@ -236,3 +236,20 @@ func (s *Store) FindByUID(ownerID int64, uid string) (Collection, Object, error)
 	c, err := s.GetCollectionByID(collID)
 	return c, o, err
 }
+
+// UsageBytes returns the size of all object data in collections owned by
+// ownerID.
+func (s *Store) UsageBytes(ownerID int64) (n int64, err error) {
+	err = s.DB.QueryRow(`SELECT COALESCE(SUM(LENGTH(o.data)), 0) FROM objects o
+		JOIN collections c ON c.id = o.collection_id WHERE c.owner_id = ?`, ownerID).Scan(&n)
+	return
+}
+
+// ObjectSize returns the stored size of an object, or 0 if it does not exist.
+func (s *Store) ObjectSize(collectionID int64, uri string) (n int64, err error) {
+	err = s.DB.QueryRow(`SELECT COALESCE(LENGTH(data), 0) FROM objects WHERE collection_id = ? AND uri = ?`, collectionID, uri).Scan(&n)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	return
+}

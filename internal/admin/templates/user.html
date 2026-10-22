@@ -7,6 +7,8 @@
     <input type="hidden" name="csrf" value="{{$.CSRF}}">
     <label>Display name <input type="text" name="display_name" value="{{.DisplayName}}"></label>
     <label>Email <input type="email" name="email" value="{{.Email}}"></label>
+    <label>Storage quota (MiB) <input type="text" name="quota_mib" inputmode="numeric" value="{{if .QuotaBytes}}{{quotaMiB .QuotaBytes}}{{end}}" placeholder="server default"></label>
+    <p class="muted">Blank uses the server default; 0 means unlimited.</p>
     <label class="inline"><input type="checkbox" name="is_admin" value="1"{{if .IsAdmin}} checked{{end}}> Administrator</label>
     <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/users">Back</a></div>
   </form>

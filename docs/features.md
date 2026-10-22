@@ -21,7 +21,7 @@ is in [roadmap.md](roadmap.md); options are in [configuration.md](configuration.
 
 Limits: no `Depth: infinity`; no WebDAV locking, `COPY`/`MOVE` or ACL
 methods; `PROPFIND` on `/` is not answered (clients should use `.well-known`
-or the `/dav/` URL); objects are limited to 10 MiB (compiled in).
+or the `/dav/` URL); objects are limited by `limits.max_request_mib` (10 MiB by default).
 
 ## Authentication
 
@@ -39,6 +39,12 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no app passwo
 
 ## Calendars and contacts
 
+- Storage quotas: `limits.default_quota_mib`, overridable per user in the admin
+  UI. A `PUT` that would exceed the owner's quota gets `507` with
+  `DAV:quota-not-exceeded`; calendar and address book home sets report
+  `quota-used-bytes` / `quota-available-bytes` (RFC 4331) when a quota applies.
+  Shared collections count against their owner.
+
 - Calendars (events, tasks, journals) and address books, with name,
   description, colour, order and allowed component types.
 - Objects: `PUT` with `If-Match` / `If-None-Match`, ETags, validation
@@ -50,7 +56,9 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no app passwo
   `equals`, `starts-with`, `ends-with`), `sync-collection` (RFC 6578),
   `free-busy-query`.
 
-Limits: no partial `calendar-data` retrieval or `expand`; a time-range query
+Limits: quotas count object data only, are checked just before a write (so
+concurrent uploads can overshoot slightly) and do not stop scheduling from
+delivering invitations into a full mailbox; no partial `calendar-data` retrieval or `expand`; a time-range query
 matches a moved recurrence instance at its original time too (rare false
 positive); times with non-IANA `TZID`s (e.g. Windows zone names) are treated as
 unindexed, which keeps queries correct but slower; no `Schedule-Tag` /
@@ -122,7 +130,7 @@ are plain writes.
   tokens, cross-origin POST rejection, strict content-security policy, login
   rate limiting per client address (proxy-aware).
 
-Limits: no password reset by email, no audit log, no quotas, no
+Limits: no password reset by email, no audit log, no
 administrator view of other users' collections, English only.
 
 ## Importing from Baikal

@@ -22,6 +22,19 @@ type Server struct {
 	// is created on first use.
 	Sched *sched.Service
 	once  sync.Once
+	// MaxBody caps a request body; 0 means 10 MiB.
+	MaxBody int64
+	// DefaultQuota caps the object data each user owns, unless the user has
+	// a quota of their own. 0 means unlimited.
+	DefaultQuota int64
+}
+
+// quotaFor returns the byte limit for u's data (0 = unlimited).
+func (s *Server) quotaFor(u store.User) int64 {
+	if u.QuotaBytes != nil {
+		return *u.QuotaBytes
+	}
+	return s.DefaultQuota
 }
 
 func (s *Server) sched() *sched.Service {
@@ -33,7 +46,7 @@ func (s *Server) sched() *sched.Service {
 	return s.Sched
 }
 
-const maxBody = 10 << 20
+const defaultMaxBody = 10 << 20
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -137,6 +150,10 @@ func (s *Server) locate(w http.ResponseWriter, r *http.Request, u store.User) (t
 
 func (s *Server) serveDAV(w http.ResponseWriter, r *http.Request) {
 	u, _ := auth.UserFrom(r.Context())
+	maxBody := s.MaxBody
+	if maxBody <= 0 {
+		maxBody = defaultMaxBody
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 	if r.Method == http.MethodOptions {
 		w.Header().Set("DAV", "1, 3, access-control, calendar-access, calendar-auto-schedule, addressbook, extended-mkcol")

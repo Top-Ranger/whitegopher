@@ -108,6 +108,17 @@ func (s *Server) outboxRes(u store.User) resource {
 }
 
 func (s *Server) homeRes(area string, u store.User) resource {
+	r := s.homeResBase(area, u)
+	if limit := s.quotaFor(u); limit > 0 {
+		if used, err := s.Store.UsageBytes(u.ID); err == nil {
+			r.props[dav("quota-used-bytes")] = strconv.FormatInt(used, 10)
+			r.props[dav("quota-available-bytes")] = strconv.FormatInt(max(limit-used, 0), 10)
+		}
+	}
+	return r
+}
+
+func (s *Server) homeResBase(area string, u store.User) resource {
 	name := "Calendars"
 	if area == "addressbooks" {
 		name = "Address books"

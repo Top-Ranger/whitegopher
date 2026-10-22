@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -208,6 +209,12 @@ func (s *Server) updateUser(w http.ResponseWriter, r *http.Request, sess *sessio
 		s.userPage(w, r, u, http.StatusUnprocessableEntity, "That email address belongs to another user.")
 		return
 	}
+	quota, err := parseQuotaMiB(r.PostFormValue("quota_mib"))
+	if err != nil {
+		s.userPage(w, r, u, http.StatusUnprocessableEntity, "Quota must be a whole number of MiB (blank for the default, 0 for unlimited).")
+		return
+	}
+	u.QuotaBytes = quota
 	u.IsAdmin = wantAdmin
 	if err := s.Store.UpdateUser(u); err != nil {
 		s.fail(w, err)
@@ -263,4 +270,19 @@ func (s *Server) deleteUser(w http.ResponseWriter, r *http.Request, sess *sessio
 		return
 	}
 	http.Redirect(w, r, "/admin/users?ok=deleted", http.StatusSeeOther)
+}
+
+// parseQuotaMiB reads the quota form field: blank is the server default (nil),
+// otherwise a non-negative number of MiB.
+func parseQuotaMiB(v string) (*int64, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n < 0 || n > 1<<30 {
+		return nil, errors.New("bad quota")
+	}
+	b := n << 20
+	return &b, nil
 }

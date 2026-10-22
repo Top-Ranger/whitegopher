@@ -284,6 +284,19 @@ func TestUserManagement(t *testing.T) {
 	status(t, resp, 303, b)
 	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert") // demote again
 	status(t, resp, 303, b)
+	// Quota: blank is the server default, 0 unlimited, a number is MiB.
+	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert", "quota_mib", "5")
+	status(t, resp, 303, b)
+	if u, _ := e.st.UserByName("bob"); u.QuotaBytes == nil || *u.QuotaBytes != 5<<20 {
+		t.Fatalf("quota = %v", u.QuotaBytes)
+	}
+	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert", "quota_mib", "lots")
+	status(t, resp, 422, b)
+	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert", "quota_mib", "")
+	status(t, resp, 303, b)
+	if u, _ := e.st.UserByName("bob"); u.QuotaBytes != nil {
+		t.Fatalf("quota not reset: %v", *u.QuotaBytes)
+	}
 	rid := strconv.FormatInt(rootID, 10)
 	resp, b = e.post(admin, "/admin/users/"+rid, "display_name", "") // demote the only admin
 	status(t, resp, 422, b)

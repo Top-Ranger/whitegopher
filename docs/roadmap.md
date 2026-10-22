@@ -35,7 +35,6 @@ sharing especially), and the results decide the order of everything below.
 
 ## Security and operations
 
-- Per-user quotas and a configurable request-size limit.
 - App passwords (per-device credentials) and optional two-factor sign-in for
   the admin UI; password reset by email.
 - Setting to hide a user's free-busy from others.

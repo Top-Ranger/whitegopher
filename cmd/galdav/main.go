@@ -86,7 +86,7 @@ func serve(cfg config.Config, st *store.Store) error {
 	if cfg.SMTP.Host != "" {
 		mailer = &sched.SMTP{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
 	}
-	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, Sched: sched.New(st, basePath, mailer)}
+	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: sched.New(st, basePath, mailer)}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", davSrv.Handler())

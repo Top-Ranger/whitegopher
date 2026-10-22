@@ -76,6 +76,11 @@ var flashes = map[string]string{
 	"password": "Password changed.",
 }
 
+var funcs = template.FuncMap{
+	// quotaMiB renders a byte quota as whole MiB.
+	"quotaMiB": func(b *int64) int64 { return *b >> 20 },
+}
+
 func (s *Server) init() error {
 	if s.Limiter == nil {
 		s.Limiter = netx.NewLimiter(10, 15*time.Minute)
@@ -90,7 +95,7 @@ func (s *Server) init() error {
 		if name == "base" {
 			continue
 		}
-		t, err := template.ParseFS(templateFS, "templates/base.html", "templates/"+e.Name())
+		t, err := template.New("").Funcs(funcs).ParseFS(templateFS, "templates/base.html", "templates/"+e.Name())
 		if err != nil {
 			return err
 		}
