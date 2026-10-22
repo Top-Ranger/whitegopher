@@ -386,6 +386,7 @@ const (
 	StatusDelivered   = "1.2"
 	StatusSuccess     = "2.0"
 	StatusInvalidUser = "3.7"
+	StatusNoAuthority = "3.8"
 	StatusUnavailable = "5.1"
 	StatusNoScheduler = "5.3"
 )
@@ -394,7 +395,7 @@ const (
 // schedule-response elements.
 var StatusText = map[string]string{
 	StatusSent: "Sent", StatusDelivered: "Delivered", StatusSuccess: "Success",
-	StatusInvalidUser: "Invalid Calendar User", StatusUnavailable: "Service unavailable",
+	StatusInvalidUser: "Invalid Calendar User", StatusNoAuthority: "No authority", StatusUnavailable: "Service unavailable",
 	StatusNoScheduler: "No scheduling support for user",
 }
 

@@ -100,8 +100,10 @@ and should be checked against real clients.
   and cancelled instances honoured, `TRANSP` and `STATUS` respected, tentative
   time reported separately and declined invitations ignored.
 
-Limits: **any authenticated user can query anyone's free-busy** (times only, no
-details), and there is no setting to hide it. Shared calendars do not count
+By default **any authenticated user can query anyone's free-busy** (times
+only, no details). A user can hide theirs under *Account → Privacy*; others then
+get `3.8` (no authority) for that user, while the user can still query their
+own. Limits: the setting is all-or-nothing (no per-person exceptions). Shared calendars do not count
 towards the sharee's availability.
 
 ## Sharing

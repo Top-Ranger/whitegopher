@@ -229,8 +229,9 @@ use the proxy's access log if you need request logs.
   (`login_limit`) and logged as `login failed ... ip=...` in the journal, with
   the real client address when `proxy.trusted` is right. `fail2ban` can watch
   that line (`journalctl -u galdav`) to block repeat offenders at the firewall.
-- Anyone with an account can query any user's free-busy times (no details).
-  Do not create accounts for people you do not want to see that.
+- Anyone with an account can query any user's free-busy times (no details)
+  unless that user hides it (Account → Privacy). Do not create accounts for
+  people you do not want to see that.
 - Keep `/etc/galdav/galdav.env` at mode 0600 and out of backups that are shared.
 - Never change `realm` after users exist.
 

@@ -21,6 +21,15 @@
 </section>
 {{end}}{{end}}
 <section>
+  <h2>Privacy</h2>
+  <form method="post" action="/admin/account/privacy" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label class="inline"><input type="checkbox" name="hide_freebusy" value="1"{{if .Data.HideFreeBusy}} checked{{end}}> Hide my availability (free/busy) from other users</label>
+    <p class="muted">Others can still invite you; they just cannot see when you are busy.</p>
+    <div><button type="submit" class="secondary">Save</button></div>
+  </form>
+</section>
+<section>
   <h2>Change password</h2>
   <p class="muted">You will be signed out everywhere, and your devices need the new password.</p>
   <form method="post" action="/admin/account/password" class="stack">

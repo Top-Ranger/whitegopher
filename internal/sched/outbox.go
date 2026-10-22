@@ -85,7 +85,9 @@ func (s *Service) HandleOutbox(u store.User, body []byte, recipients []string) (
 		uid := getValue(first, ical.PropUID)
 		for _, r := range recipients {
 			res := OutboxResult{Recipient: r}
-			if to, ok := s.lookup(r); ok {
+			if to, ok := s.lookup(r); ok && to.HideFreeBusy && to.ID != u.ID {
+				res.Status = StatusNoAuthority
+			} else if ok {
 				busy, tent, err := s.UserFreeBusy(to, start, end)
 				if err != nil {
 					res.Status = StatusUnavailable

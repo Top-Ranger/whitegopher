@@ -135,6 +135,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("GET /admin/account", s.authed(s.accountForm))
 	mux.HandleFunc("POST /admin/account/password", s.authed(s.changeOwnPassword))
 	mux.HandleFunc("POST /admin/account/default-calendar", s.authed(s.setDefaultCalendar))
+	mux.HandleFunc("POST /admin/account/privacy", s.authed(s.setPrivacy))
 
 	mux.HandleFunc("GET /admin/users", s.adminOnly(s.listUsers))
 	mux.HandleFunc("GET /admin/users/new", s.adminOnly(s.newUserForm))

@@ -14,6 +14,8 @@ type accountData struct {
 	Calendars []store.Collection
 	// Default is the slug of the calendar receiving invitations ("" = automatic).
 	Default string
+	// HideFreeBusy withholds the user's availability from other users.
+	HideFreeBusy bool
 }
 
 func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, sess *session, status int, errMsg string) {
@@ -23,7 +25,7 @@ func (s *Server) accountPage(w http.ResponseWriter, r *http.Request, sess *sessi
 		return
 	}
 	s.render(w, r, "account", status, page{Title: "Account", Nav: "account", Error: errMsg,
-		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar}})
+		Data: accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy}})
 }
 
 func (s *Server) accountForm(w http.ResponseWriter, r *http.Request, sess *session) {
@@ -39,6 +41,14 @@ func (s *Server) setDefaultCalendar(w http.ResponseWriter, r *http.Request, sess
 		}
 	}
 	if err := s.Store.SetDefaultCalendar(sess.User.ID, slug); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/account?ok=saved", http.StatusSeeOther)
+}
+
+func (s *Server) setPrivacy(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.Store.SetHideFreeBusy(sess.User.ID, r.PostFormValue("hide_freebusy") != ""); err != nil {
 		s.fail(w, err)
 		return
 	}

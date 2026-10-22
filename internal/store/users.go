@@ -24,14 +24,16 @@ type User struct {
 	// QuotaBytes caps the object data the user owns. nil means the server
 	// default; 0 means unlimited.
 	QuotaBytes *int64
+	// HideFreeBusy withholds the user's availability from other users.
+	HideFreeBusy bool
 }
 
-const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes`
+const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes, hide_freebusy`
 
 func scanUser(sc interface{ Scan(...any) error }) (User, error) {
 	var u User
 	var quota sql.NullInt64
-	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota)
+	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota, &u.HideFreeBusy)
 	if quota.Valid {
 		u.QuotaBytes = &quota.Int64
 	}
@@ -175,5 +177,11 @@ func (s *Store) DeleteUser(id int64) error {
 // SetDefaultCalendar records which calendar receives invitations.
 func (s *Store) SetDefaultCalendar(userID int64, slug string) error {
 	_, err := s.DB.Exec(`UPDATE users SET default_calendar = ? WHERE id = ?`, slug, userID)
+	return err
+}
+
+// SetHideFreeBusy records whether the user's availability is hidden from others.
+func (s *Store) SetHideFreeBusy(userID int64, hide bool) error {
+	_, err := s.DB.Exec(`UPDATE users SET hide_freebusy = ? WHERE id = ?`, hide, userID)
 	return err
 }

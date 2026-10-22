@@ -226,6 +226,19 @@ func TestFreeBusy(t *testing.T) {
 	expect(t, st, 207, body)
 	_, body, _ = b.req("POST", "/dav/calendars/bob/outbox/", req, "Content-Type", "text/calendar")
 	lacks(t, unfold(body), "FBTYPE=BUSY:")
+
+	// A user who hides their availability answers 3.8 to others only.
+	au, _ := e.st.UserByName("alice")
+	if err := e.st.SetHideFreeBusy(au.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	_, body, _ = b.req("POST", "/dav/calendars/bob/outbox/", req, "Content-Type", "text/calendar")
+	body = unfold(body)
+	has(t, body, "3.8;No authority")
+	lacks(t, body, "FREEBUSY")
+	own := strings.Replace(req, "ORGANIZER:mailto:bob@example.com", "ORGANIZER:mailto:alice@example.com", 1)
+	_, body, _ = a.req("POST", "/dav/calendars/alice/outbox/", own, "Content-Type", "text/calendar", "Recipient", "mailto:alice@example.com")
+	has(t, unfold(body), "2.0;Success")
 }
 
 func TestExplicitOutboxDelivery(t *testing.T) {

@@ -278,6 +278,19 @@ func TestUserManagement(t *testing.T) {
 	}
 	login("bob", "new-password1")
 
+	// Hiding free-busy is a personal setting.
+	bc = login("bob", "new-password1")
+	resp, b = e.post(bc, "/admin/account/privacy", "hide_freebusy", "1")
+	status(t, resp, 303, b)
+	if u, _ := e.st.UserByName("bob"); !u.HideFreeBusy {
+		t.Fatal("hide_freebusy not saved")
+	}
+	resp, b = e.post(bc, "/admin/account/privacy")
+	status(t, resp, 303, b)
+	if u, _ := e.st.UserByName("bob"); u.HideFreeBusy {
+		t.Fatal("hide_freebusy not cleared")
+	}
+
 	// Admin edits, resets and deletes; last-admin and self protections hold.
 	bid := strconv.FormatInt(bob.ID, 10)
 	resp, b = e.post(admin, "/admin/users/"+bid, "display_name", "Robert", "is_admin", "1")
