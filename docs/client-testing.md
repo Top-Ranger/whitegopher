@@ -234,6 +234,10 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **H7** | Share an **address book** read-only with bob. | Contacts visible to bob; edits refused. |
 | **H8** | (Apple only) Share from alice's iOS/macOS client via the sharing UI instead of the admin UI. | Either works (bob gets the calendar immediately) or fails clearly; record exactly what the client says. This exercises the `CS:share` protocol, which is the least certain part of galdav. |
 
+| **H9** | Set `sharing.require_accept: true`, restart, and share *CT Events* with bob from alice's admin UI. Look at bob's client, then at bob's admin start page. | The calendar is **not** in bob's client yet; bob's start page lists an invitation. Accept it: the calendar appears after the next sync. Decline a second one: it never appears. |
+| **H10** | (Apple only) With `require_accept` on, share from alice's iOS/macOS client. | Bob's Calendar app shows an invitation (it reads `CS:notification-URL`); accepting adds the calendar, declining does not, and alice's client shows the answer. Record exactly what each side shows; this is the least certain part of the sharing protocol. |
+| **H11** | In the admin UI turn on a **public link** for *CT Events*, subscribe to it from a calendar app that supports internet calendar subscriptions (an `https://…/public/<token>.ics` URL, no login). Then press *New address*. | Events show up read-only. After *New address* the old subscription fails cleanly (404) and the new one works. Turning the link off ends access. |
+
 ### A. Accounts and authentication
 
 | ID | Steps | Expect |
@@ -242,7 +246,20 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **A2** | Reset bob's password as administrator. | Same as A1 for bob. |
 | **A3** | Check that the client authenticates with **Basic** over TLS (traffic capture). | Works; no `Digest` challenge is offered. |
 | **A4** | Sign in to the admin UI at the same time as clients are syncing. | Independent; neither disturbs the other. |
+| **A6** | In the admin UI create an **app password** for the client; sign the client in with it instead of the account password. Then revoke it. | Syncing works with the app password; after revoking, the client asks for credentials again and the account password still works. |
+| **A7** | Turn on **two-factor** for alice (admin UI). Check the clients that still use alice's account password. | They are refused (`401`) until given an app password; the admin UI asks for the code. Turning two-factor off restores account-password logins. |
+| **A8** | Repeat wrong passwords from one client until it is refused. | After `login_limit.failures` failures the server answers `429`; the failures appear in the log with the client's real address (check `proxy.trusted`). |
 | **A5** | Delete bob's account while his client is syncing. | The client reports authentication failure; no crash, no data touched in alice's account. |
+
+### S. Scheduling details
+
+| ID | Steps | Expect |
+|---|---|---|
+| **S1** | Organizer edits only the **title** of an event that has an external attendee, then moves it to another time. | The title edit sends no new email; the move does. The organizer's client does not report a `412` conflict on either save. |
+| **S2** | Organizer's client saves an invitation, then edit it again immediately from the same client (no re-sync). | No `412`; the client picks up the `Schedule-Tag` the server returned. |
+| **S3** | Attendee declines **one occurrence** of a weekly series. | The organizer's copy shows that occurrence declined (an override appears), the rest of the series is untouched. |
+| **S4** | Ask the client for a month view of a recurring event if it uses `expand`/partial `calendar-data` (traffic capture). | Instances in the right places, across a DST change; nothing missing or doubled. |
+| **S5** | (Optional, needs mail piping set up, see the deployment guide.) Answer an invitation from an outside mail client. | `galdav imip-receive` applies the answer; the organizer's copy shows the new status. |
 
 ### X. Robustness
 
@@ -376,11 +393,22 @@ Copy this table into an issue or a notes file and fill it in. Use
 | H6 |  |  |  |  |
 | H7 |  |  |  |  |
 | H8 |  |  |  |  |
+| H9 |  |  |  |  |
+| H10 |  |  |  |  |
+| H11 |  |  |  |  |
 | A1 |  |  |  |  |
 | A2 |  |  |  |  |
 | A3 |  |  |  |  |
 | A4 |  |  |  |  |
 | A5 |  |  |  |  |
+| A6 |  |  |  |  |
+| A7 |  |  |  |  |
+| A8 |  |  |  |  |
+| S1 |  |  |  |  |
+| S2 |  |  |  |  |
+| S3 |  |  |  |  |
+| S4 |  |  |  |  |
+| S5 |  |  |  |  |
 | X1 |  |  |  |  |
 | X2 |  |  |  |  |
 | X3 |  |  |  |  |
