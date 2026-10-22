@@ -50,20 +50,20 @@ For a real installation follow [docs/deployment.md](docs/deployment.md).
 ## Development
 
 ```
-cmd/whitegopher/         CLI: serve, useradd, import-baikal
-internal/config/    YAML config and environment overrides
-internal/store/     MySQL/MariaDB store, embedded migrations
-internal/auth/      password hashing, Basic auth middleware
-internal/netx/      trusted proxies, client address, login rate limiter
-internal/obs/       access log and Prometheus metrics
-internal/dav/       WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
-internal/sched/     free-busy, iTIP scheduling, iMIP email
-internal/index/     object validation and occurrence indexing
-internal/admin/     web UI (templates and static assets embedded)
-internal/importer/  one-time Baikal import
-internal/storetest/ throwaway test databases
-deploy/             deployment files
-docs/               documentation
+cmd/whitegopher/        CLI: serve, useradd, import-baikal
+internal/config/        YAML config and environment overrides
+internal/store/         MySQL/MariaDB store, embedded migrations
+internal/auth/          password hashing, Basic auth middleware
+internal/netx/          trusted proxies, client address, login rate limiter
+internal/obs/           access log and Prometheus metrics
+internal/dav/           WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
+internal/sched/         free-busy, iTIP scheduling, iMIP email
+internal/index/         object validation and occurrence indexing
+internal/admin/         web UI (templates and static assets embedded)
+internal/importer/      one-time Baikal import
+internal/storetest/     throwaway test databases
+deploy/                 deployment files
+docs/                   documentation
 ```
 
 Tests need a MySQL/MariaDB server where they may create and drop

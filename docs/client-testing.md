@@ -1,12 +1,12 @@
 # Client testing checklist
 
-whitegopher's automated tests exercise the server through its own HTTP interface.
-They cannot tell whether DAVx5, Apple's Calendar and Contacts, or Thunderbird
-accept what whitegopher sends. This checklist is how to find out: a repeatable set
-of scenarios, identical test data for every client, and a way to capture
-evidence when something fails.
+White Gopher's automated tests exercise the server through its own HTTP
+interface. They cannot tell whether DAVx5, Apple's Calendar and Contacts, or
+Thunderbird accept what White Gopher sends. This checklist is how to find out: a
+repeatable set of scenarios, identical test data for every client, and a way to
+capture evidence when something fails.
 
-Use it before relying on whitegopher for real data, and again after changes to
+Use it before relying on White Gopher for real data, and again after changes to
 discovery, properties, scheduling or sharing. Results go into the table in
 [section 4](#4-record-the-results); anything that fails becomes an issue with the
 evidence described in [section 3](#3-capturing-evidence).
@@ -25,7 +25,7 @@ Contents: [1 Preparation](#1-preparation) · [2 Scenarios](#2-scenarios) ·
 
 ### Test server
 
-- A whitegopher instance behind real TLS (iOS and macOS refuse plain HTTP and
+- A White Gopher instance behind real TLS (iOS and macOS refuse plain HTTP and
   self-signed certificates; Let's Encrypt via Caddy is the easy route). Follow
   [deployment.md](deployment.md). A throwaway database is fine; do **not** test
   on data you care about.
@@ -36,7 +36,8 @@ Contents: [1 Preparation](#1-preparation) · [2 Scenarios](#2-scenarios) ·
 
 ### Accounts
 
-Create in the admin UI (or `whitegopher useradd`), each **with an email address**:
+Create in the admin UI (or `whitegopher useradd`), each **with an email
+address**:
 
 | User | Email | Role |
 |---|---|---|
@@ -81,7 +82,7 @@ Run it again for bob (`seed.sh … bob`) when a scenario needs bob to have data.
   ```sh
   export BASE=https://cal.example.com PW='alice-password'
   dav()  { curl -s -u "alice:$PW" "$@"; }                 # e.g. dav -X PROPFIND -H 'Depth: 1' $BASE/dav/calendars/alice/
-  q()    { mysql whitegopher -e "$1"; }                         # run on the database host
+  q()    { mysql whitegopher -e "$1"; }                   # run on the database host
   ```
 
   Useful queries: what a client stored,
@@ -113,10 +114,10 @@ If these fail, fix the deployment first; clients will only add confusion.
 
 ## 2. Scenarios
 
-Scenario IDs are used in the result table. For each, "Client" is what you
-should see on the device; "Server" is how to confirm what whitegopher holds. Run
-each scenario in every client the matrix in [5](#5-client-specific-notes) marks
-as applicable. If a client has no UI for something, mark it *n/a*, not *fail*.
+Scenario IDs are used in the result table. For each, "Client" is what you should
+see on the device; "Server" is how to confirm what White Gopher holds. Run each
+scenario in every client the matrix in [5](#5-client-specific-notes) marks as
+applicable. If a client has no UI for something, mark it *n/a*, not *fail*.
 
 ### D. Account setup and discovery
 
@@ -177,8 +178,8 @@ device or client.
 | **Y2** | Airplane mode: edit three events and delete one on client A; edit a different event on client B (online). Reconnect A. | All edits merge; nothing lost or duplicated. |
 | **Y3** | Edit the **same** event on both clients while A is offline; reconnect A. | The client handles the conflict (one version wins, no corruption, no endless sync loop). Record which version won. |
 | **Y4** | Seed 300+ events (see the loop in section 6) and add a fresh client/account. | Initial sync finishes in reasonable time with the correct count. |
-| **Y5** | In the DB, simulate a lost sync state: `DELETE FROM changes WHERE collection_id = <id>;`, then sync a client that already has the account. | Client recovers with a full resync (whitegopher answers `valid-sync-token` errors for stale tokens); no stuck error state. |
-| **Y6** | Restart whitegopher while a client is syncing. | Client retries and completes; no data loss. |
+| **Y5** | In the DB, simulate a lost sync state: `DELETE FROM changes WHERE collection_id = <id>;`, then sync a client that already has the account. | Client recovers with a full resync (White Gopher answers `valid-sync-token` errors for stale tokens); no stuck error state. |
+| **Y6** | Restart White Gopher while a client is syncing. | Client retries and completes; no data loss. |
 | **Y7** | Stop the proxy for five minutes, edit on the client, start it again. | Client uploads its changes once reachable. |
 | **Y8** | Force-refresh/"Reset synchronisation" in the client. | Everything redownloaded, no duplicates. |
 
@@ -209,9 +210,9 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **I9** | Same without SMTP configured. | The event saves normally; `SCHEDULE-STATUS=5.3` for that attendee; the client does not show an error loop. |
 | **I10** | Bob deletes an event he was invited to, without answering. | Alice sees bob as **declined**. |
 | **I11** | Alice removes bob from the attendee list of an existing event. | Bob's copy is cancelled. |
-| **I12** | Invite bob to a **recurring** event; bob accepts one occurrence only (clients ask "this event only?"). | Note the outcome: whitegopher records replies for existing overrides and the series; a reply for a single plain instance of a series is not (yet) recorded (see [features.md](features.md)). Make sure nothing breaks. |
+| **I12** | Invite bob to a **recurring** event; bob accepts one occurrence only (clients ask "this event only?"). | Note the outcome: White Gopher records replies for existing overrides and the series; a reply for a single plain instance of a series is not (yet) recorded (see [features.md](features.md)). Make sure nothing breaks. |
 | **I13** | Use the client's **"Inbox"/"Invitations"** view (Apple) or invitation panel (Thunderbird): accept from there instead of from the event. | Same result as I3. |
-| **I14** | Invite bob from a client that can also send invitations by email on its own (Thunderbird, depending on settings). | Bob receives **one** invitation, not two (one from the client and one from whitegopher). If a client marks attendees `SCHEDULE-AGENT=CLIENT`, whitegopher leaves delivery to it; check the stored `ATTENDEE` lines to see which happened. |
+| **I14** | Invite bob from a client that can also send invitations by email on its own (Thunderbird, depending on settings). | Bob receives **one** invitation, not two (one from the client and one from White Gopher). If a client marks attendees `SCHEDULE-AGENT=CLIENT`, White Gopher leaves delivery to it; check the stored `ATTENDEE` lines to see which happened. |
 
 ### F. Free-busy
 
@@ -279,7 +280,7 @@ for I8/I9 the external address. Use **timed events in the future.**
 A failure report without evidence is a guess. Get at least one of these
 **before you change anything else.**
 
-**1. Wire capture between proxy and whitegopher** (best: full requests and
+**1. Wire capture between proxy and White Gopher** (best: full requests and
 responses, bodies included, because that hop is plain HTTP on the same host):
 
 ```sh
@@ -307,8 +308,9 @@ Look at the `request.method`, `request.uri` and `status` fields around the time
 of the problem; repeated `401`s mean an authentication problem, `403`/`409`/
 `412`/`415` are almost always protocol disagreements worth reporting.
 
-**3. whitegopher's journal**: `journalctl -u whitegopher --since '10 minutes ago'`. Only
-errors are logged; a `500` always has an `ERROR` line here.
+**3. White Gopher's journal**:
+`journalctl -u whitegopher --since '10 minutes ago'`. Only errors are logged; a
+`500` always has an `ERROR` line here.
 
 **4. Database state**: the `q` queries from section 1 show what the server
 actually stored and the sync log.
@@ -438,7 +440,7 @@ Shares (H1–H6) ✅ for DAVx5's read-only handling (H2). Everything else may be
 ## 5. Client-specific notes
 
 Which scenarios apply, what the client is expected to do (to be **verified**),
-and where whitegopher is most likely to disagree.
+and where White Gopher is most likely to disagree.
 
 ### DAVx5 (Android)
 
@@ -478,8 +480,8 @@ and sharing.
 - Tasks appear in **Reminders** (the CT Tasks list) and need the calendar
   object type `VTODO` (R6, W7).
 - Notice whether Apple adds `If-Schedule-Tag-Match`/`Schedule-Tag` headers when
-  editing invitations (whitegopher honours them; a `412` after an organizer edit is expected, a `412` on
-  a plain edit is a finding).
+  editing invitations (White Gopher honours them; a `412` after an organizer
+  edit is expected, a `412` on a plain edit is a finding).
 - **Invitations (I2, I13):** Apple shows invitations in the Calendar app's
   *Inbox* and as events needing action; check both, and check that the reply
   arrives (I3).
@@ -503,10 +505,10 @@ A, X. Tasks are shown in the same calendars (R6, W7).
   `https://cal.example.com/dav/addressbooks/alice/ct-contacts/`.
   "Find Calendars" against `https://cal.example.com/dav/` should list the
   collections (D2).
-- Thunderbird decides between server-side and email scheduling from the
-  `DAV:` capabilities whitegopher advertises (`calendar-auto-schedule`). **I14 is the
-  important check:** invitations must be sent once, not by both the client (email)
-  and the server.
+- Thunderbird decides between server-side and email scheduling from the `DAV:`
+  capabilities White Gopher advertises (`calendar-auto-schedule`). **I14 is the
+  important check:** invitations must be sent once, not by both the client
+  (email) and the server.
 - Thunderbird polls the scheduling inbox and honours `current-user-privilege-set`
   for read-only calendars (H2).
 - Free/busy (F1) uses the outbox; open an event, add an attendee and use the
@@ -524,11 +526,11 @@ finding strict-parser problems.
 
 ## 6. Triage map
 
-When something fails, this tells you where in whitegopher to look first.
+When something fails, this tells you where in White Gopher to look first.
 
 | Symptom | Where to look |
 |---|---|
-| Account cannot be set up / discovery fails | Proxy forwarding of `/.well-known/*`; `internal/dav/server.go` (`serveDAV`, `resolve`/`propfind`), `internal/dav/props.go` (`principalRes`: `calendar-home-set`, `schedule-*-URL`). Check whether the client requested a path whitegopher returns `404` for. |
+| Account cannot be set up / discovery fails | Proxy forwarding of `/.well-known/*`; `internal/dav/server.go` (`serveDAV`, `resolve`/`propfind`), `internal/dav/props.go` (`principalRes`: `calendar-home-set`, `schedule-*-URL`). Check whether the client requested a path White Gopher returns `404` for. |
 | Repeated `401` | `internal/auth` (Basic credentials, realm); wrong password; proxy altering the `Authorization` header or the request URI. |
 | `403`/`409`/`412` on PUT | `internal/dav/handlers.go` `put` and `internal/index/index.go` (validation: `METHOD`, UID, component type, `valid-calendar-data`); preconditions on `If-Match`. The error body names the precondition. |
 | Items missing/duplicated after sync | `changes` table; `sync-collection` in `internal/dav/report.go`; `PutObject`/`DeleteObject` in `internal/store/objects.go`. |

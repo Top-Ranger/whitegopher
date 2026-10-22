@@ -1,6 +1,6 @@
 # Configuration reference
 
-whitegopher reads a YAML file (default `config.yaml` in the working directory;
+White Gopher reads a YAML file (default `config.yaml` in the working directory;
 choose another with `-config`), then applies environment overrides. Unknown
 keys are ignored. Example files are in [`deploy/`](../deploy).
 
@@ -72,8 +72,8 @@ smtp:                    # optional iMIP email for attendees without an account
   (`md5(user:realm:password)`) work: it must match until each imported user
   has signed in once. After that, or if you never import from Baikal, it can
   be changed freely.
-- **`db.dsn`** must name an existing database; whitegopher creates and migrates the
-  tables itself. Special characters (`/`, `@`) in the password break the DSN
+- **`db.dsn`** must name an existing database; White Gopher creates and migrates
+  the tables itself. Special characters (`/`, `@`) in the password break the DSN
   parser, so generate one with `openssl rand -hex 24`. Unix sockets work:
   `user:pass@unix(/run/mysqld/mysqld.sock)/whitegopher`.
 - **`proxy.trusted`** matters whenever a reverse proxy is in front. Only

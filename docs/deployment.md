@@ -1,14 +1,15 @@
 # Deployment guide
 
-A production whitegopher is three things: the **whitegopher binary**, a **MariaDB/MySQL
-database**, and a **reverse proxy** that terminates TLS. This guide sets that up
-on a Linux host with systemd. Commands assume Debian/Ubuntu-style paths; adapt
-as needed. The whitegopher parts (build, database user with the stated grant,
-configuration, user creation, serving, health check, proxy-header handling,
-graceful shutdown) were rehearsed against the real binary and a MariaDB server;
-the root-level steps (creating the system user, `systemd-run`, installing the
-unit) were only syntax-checked (`systemd-analyze verify`, `caddy validate`), and
-the nginx configuration and anything marked *untested* were not run.
+A production White Gopher is three things: the **White Gopher binary**, a
+**MariaDB/MySQL database**, and a **reverse proxy** that terminates TLS. This
+guide sets that up on a Linux host with systemd. Commands assume
+Debian/Ubuntu-style paths; adapt as needed. The White Gopher parts (build,
+database user with the stated grant, configuration, user creation, serving,
+health check, proxy-header handling, graceful shutdown) were rehearsed against
+the real binary and a MariaDB server; the root-level steps (creating the system
+user, `systemd-run`, installing the unit) were only syntax-checked
+(`systemd-analyze verify`, `caddy validate`), and the nginx configuration and
+anything marked *untested* were not run.
 
 Contents: [requirements](#requirements) · [build](#1-build-and-install) ·
 [database](#2-database) · [service user and config](#3-service-user-and-configuration) ·
@@ -19,12 +20,12 @@ Contents: [requirements](#requirements) · [build](#1-build-and-install) ·
 
 ## Requirements
 
-- Linux host; whitegopher is a single static binary, no other runtime.
+- Linux host; White Gopher is a single static binary, no other runtime.
 - MariaDB (developed and tested on 13.0) or MySQL (8.x expected to work,
   *untested*), utf8mb4. On the same host or reachable over a private network.
 - A DNS name and a reverse proxy with a TLS certificate (Caddy gets one
   automatically). Calendar and contact clients send passwords with every
-  request: **never expose whitegopher over plain HTTP.**
+  request: **never expose White Gopher over plain HTTP.**
 - To build: Go 1.26 or newer. (Or build elsewhere and copy the binary.)
 
 ## 1. Build and install
@@ -52,8 +53,8 @@ CREATE USER 'whitegopher'@'127.0.0.1' IDENTIFIED BY 'CHANGE-ME';
 GRANT ALL PRIVILEGES ON whitegopher.* TO 'whitegopher'@'127.0.0.1';
 ```
 
-`ALL` on that one database is needed because whitegopher creates and alters its own
-tables at startup and on upgrades. Grant nothing outside it.
+`ALL` on that one database is needed because White Gopher creates and alters its
+own tables at startup and on upgrades. Grant nothing outside it.
 
 Uploads can reach 10 MiB, so make sure `max_allowed_packet` is at least `16M`
 (the default of MariaDB and MySQL 8 already is). Keep the database listening on
@@ -66,11 +67,12 @@ sudo useradd --system --home-dir /nonexistent --shell /usr/sbin/nologin whitegop
 sudo install -d -m 0750 -o root -g whitegopher /etc/whitegopher
 sudo install -m 0640 -o root -g whitegopher deploy/config.example.yaml /etc/whitegopher/config.yaml
 sudo install -m 0600 -o root -g root     deploy/whitegopher.env.example  /etc/whitegopher/whitegopher.env
-sudoedit /etc/whitegopher/whitegopher.env      # put the real database password into WHITEGOPHER_DB_DSN
+sudoedit /etc/whitegopher/whitegopher.env  # put the real database password into WHITEGOPHER_DB_DSN
 ```
 
-Review `/etc/whitegopher/config.yaml`; the defaults in `deploy/config.example.yaml`
-are right for a proxy on the same host. Two decisions to make **now**:
+Review `/etc/whitegopher/config.yaml`; the defaults in
+`deploy/config.example.yaml` are right for a proxy on the same host. Two
+decisions to make **now**:
 
 1. **`realm`** is the HTTP Basic realm. Pick a value (e.g. your domain). If
    you will import from Baikal, use `BaikalDAV` instead until the imported
@@ -93,8 +95,8 @@ sudo systemd-run --pty --wait --collect --uid=whitegopher --property=Environment
 It prompts for the password twice without echo (minimum 8 characters). The
 `-email` is what lets other users invite this account to events. Further users
 are created in the admin UI. (Without `systemd-run`: `export` the variables from
-the env file in a shell and run the same command as the `whitegopher` user. Do not
-`source` the env file; its DSN contains parentheses.)
+the env file in a shell and run the same command as the `whitegopher` user. Do
+not `source` the env file; its DSN contains parentheses.)
 
 ## 5. Run it with systemd
 
@@ -108,13 +110,13 @@ curl -s http://127.0.0.1:8080/healthz      # prints "ok"
 
 The unit runs as the unprivileged `whitegopher` user with a locked-down sandbox,
 restarts on failure and gives a graceful shutdown of up to 15 seconds. Logs go
-to the journal: `journalctl -u whitegopher -f`. On first start whitegopher creates its
-tables; a database error appears there (and the service retries).
+to the journal: `journalctl -u whitegopher -f`. On first start White Gopher
+creates its tables; a database error appears there (and the service retries).
 
 ## 6. Put a TLS proxy in front
 
-whitegopher speaks plain HTTP and trusts `X-Forwarded-For`/`-Proto` only from the
-addresses in `proxy.trusted`. The proxy must forward the original `Host`
+White Gopher speaks plain HTTP and trusts `X-Forwarded-For`/`-Proto` only from
+the addresses in `proxy.trusted`. The proxy must forward the original `Host`
 header, allow request bodies of at least 10 MiB, and use TLS.
 
 **Caddy** (simplest; gets and renews the certificate itself):
@@ -161,9 +163,9 @@ something to sync. The client-testing status is stated in
 
 ## 8. Migrating from Baikal
 
-1. Install whitegopher as above, but set `realm: "BaikalDAV"` in the config (unless
-   you changed Baikal's realm) **before** importing, so imported password hashes
-   keep working. Do not create users first.
+1. Install White Gopher as above, but set `realm: "BaikalDAV"` in the config
+   (unless you changed Baikal's realm) **before** importing, so imported
+   password hashes keep working. Do not create users first.
 2. Stop clients from writing to Baikal (or accept that later changes are
    lost), and take a backup of the Baikal database.
 3. Preview, then import. For Baikal's default SQLite database (usually
@@ -189,23 +191,25 @@ settings. A calendar named `inbox` or `outbox` is renamed (reserved names).
 
 ## Inbound email (optional)
 
-Attendees outside whitegopher answer an invitation by email, and external organizers
-invite your users by email. whitegopher does not fetch mail; your mail server hands
-each relevant message to `whitegopher imip-receive`, which reads it from standard
-input. Typical wiring (Postfix, Sieve or procmail): for messages that contain a
-`text/calendar` part and are addressed to a whitegopher user, **copy** them to
+Attendees outside White Gopher answer an invitation by email, and external
+organizers invite your users by email. White Gopher does not fetch mail; your
+mail server hands each relevant message to `whitegopher imip-receive`, which
+reads it from standard input. Typical wiring (Postfix, Sieve or procmail): for
+messages that contain a `text/calendar` part and are addressed to a White Gopher
+user, **copy** them to
 
 ```sh
 /usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml imip-receive
 ```
 
-run as the `whitegopher` user (e.g. a Postfix `pipe` transport with `user=whitegopher`,
-or a Sieve/procmail pipe action). The command exits `0` for anything it
-understood or deliberately ignored (it logs why, at warn level) and non-zero for
-real errors such as an unreachable database, so the mail is retried.
+run as the `whitegopher` user (e.g. a Postfix `pipe` transport with
+`user=whitegopher`, or a Sieve/procmail pipe action). The command exits `0` for
+anything it understood or deliberately ignored (it logs why, at warn level) and
+non-zero for real errors such as an unreachable database, so the mail is
+retried.
 
-Email can be forged, so whitegopher acts on a message only if all of these hold:
-the calendar's `ORGANIZER`/`ATTENDEE` is the message's `From`, the topmost
+Email can be forged, so White Gopher acts on a message only if all of these
+hold: the calendar's `ORGANIZER`/`ATTENDEE` is the message's `From`, the topmost
 `Authentication-Results` header (added by **your** mail server, e.g. via
 OpenDKIM/OpenDMARC/Rspamd) shows `dkim=pass`, `spf=pass` or `dmarc=pass`, and
 the message would not overwrite an event the user organizes. Leave
@@ -247,7 +251,7 @@ database: object data plus the change log used for sync.
 startup and daily; clients usually delete processed items sooner. Deleting a user removes their collections,
 shares and sessions.
 
-**Logs and privacy.** By default whitegopher logs startup, shutdown, errors and
+**Logs and privacy.** By default White Gopher logs startup, shutdown, errors and
 failed logins, not requests. Set `log.access: true` for one structured line per
 request (path without query string, never bodies or passwords), or use the
 proxy's access log.
@@ -255,22 +259,24 @@ proxy's access log.
 ## Security checklist
 
 - TLS only; HSTS at the proxy is a good idea once it works.
-- The database listens on localhost/private network and the `whitegopher` database
-  user has no rights beyond its own database.
+- The database listens on localhost/private network and the `whitegopher`
+  database user has no rights beyond its own database.
 - Create the first admin from the CLI on exposed hosts (section 4).
 - `proxy.trusted` lists only your proxy. If it is empty or wrong, rate limits
   and cookie flags are wrong too.
 - Failed logins (DAV and admin UI) are rate limited per client address
   (`login_limit`) and logged as `login failed ... ip=...` in the journal, with
   the real client address when `proxy.trusted` is right. `fail2ban` can watch
-  that line (`journalctl -u whitegopher`) to block repeat offenders at the firewall.
+  that line (`journalctl -u whitegopher`) to block repeat offenders at the
+  firewall.
 - Public links (`/public/<token>`) are readable by anyone who has the address.
   Treat them like a password; replace or turn off a link in the collection's
   page if it leaks.
 - Anyone with an account can query any user's free-busy times (no details)
   unless that user hides it (Account → Privacy). Do not create accounts for
   people you do not want to see that.
-- Keep `/etc/whitegopher/whitegopher.env` at mode 0600 and out of backups that are shared.
+- Keep `/etc/whitegopher/whitegopher.env` at mode 0600 and out of backups that
+  are shared.
 - Never change `realm` after users exist.
 
 ## Troubleshooting

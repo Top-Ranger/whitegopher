@@ -1,12 +1,14 @@
 # Features and limits
 
-What White Gopher does today, area by area, each with its known limits. Planned work
-is in [roadmap.md](roadmap.md); options are in [configuration.md](configuration.md).
+What White Gopher does today, area by area, each with its known limits. Planned
+work is in [roadmap.md](roadmap.md); options are in
+[configuration.md](configuration.md).
 
 > **Status:** everything below is covered by automated tests against MariaDB,
-> but White Gopher has **not yet been tried with real clients** (DAVx5, iOS/macOS
-> Calendar and Contacts, Thunderbird, Evolution). Expect client-specific
-> quirks until that has been done; see [client-testing.md](client-testing.md).
+> but White Gopher has **not yet been tried with real clients** (DAVx5,
+> iOS/macOS Calendar and Contacts, Thunderbird, Evolution). Expect
+> client-specific quirks until that has been done; see
+> [client-testing.md](client-testing.md).
 
 ## Protocols and discovery
 
@@ -125,9 +127,9 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   applies a REPLY from an external attendee to the local organizer's copy, or a
   REQUEST/CANCEL from an external organizer to local attendees. The calendar's
   ORGANIZER/ATTENDEE must equal the sender, the receiving mail server must have
-  vouched for the sender (`Authentication-Results` with dkim, spf or dmarc
-  pass; `scheduling.imip_require_auth`), and a message can never overwrite an
-  event the user organizes or one from a different organizer. White Gopher does not
+  vouched for the sender (`Authentication-Results` with dkim, spf or dmarc pass;
+  `scheduling.imip_require_auth`), and a message can never overwrite an event
+  the user organizes or one from a different organizer. White Gopher does not
   fetch mail itself: your mail server pipes messages to it (see the deployment
   guide).
 - Edits through a read-write share schedule **on the owner's behalf**:
