@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>White Gopher</title>
+  <defs>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4fd1ec"/>
+      <stop offset="1" stop-color="#0090b8"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e2edf3"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)" stroke="#12303b" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <rect width="512" height="512" fill="url(#bg)" stroke="none"/>
+    <circle cx="256" cy="260" r="215" fill="#fff" opacity="0.12" stroke="none"/>
+
+    <!-- ears: the gopher's small round ears, upright with pink insides -->
+    <g transform="rotate(-22 150 85)">
+      <ellipse cx="150" cy="75" rx="30" ry="50" fill="url(#fur)"/>
+      <ellipse cx="150" cy="82" rx="14" ry="32" fill="#f6a8c0" stroke="none"/>
+    </g>
+    <g transform="rotate(22 362 85)">
+      <ellipse cx="362" cy="75" rx="30" ry="50" fill="url(#fur)"/>
+      <ellipse cx="362" cy="82" rx="14" ry="32" fill="#f6a8c0" stroke="none"/>
+    </g>
+
+    <!-- feet -->
+    <g fill="#f6d2a2">
+      <path d="M170 450 C150 455 140 475 150 486 C165 494 190 484 206 462 Z"/>
+      <path d="M342 450 C362 455 372 475 362 486 C347 494 322 484 306 462 Z"/>
+    </g>
+
+    <!-- one-piece bean body -->
+    <path d="M256 30 C150 30 112 105 110 195 C108 280 118 330 112 380 C108 440 170 466 256 466 C342 466 404 440 400 380 C394 330 404 280 402 195 C400 105 362 30 256 30 Z" fill="url(#fur)"/>
+
+    <!-- arms -->
+    <g fill="#f6d2a2">
+      <path d="M114 292 C96 292 82 302 82 312 C86 322 100 322 118 318 Z"/>
+      <path d="M398 292 C416 292 430 302 430 312 C426 322 412 322 394 318 Z"/>
+    </g>
+
+    <!-- waistcoat -->
+    <path d="M166 266 C158 340 160 400 176 440 C206 454 306 454 336 440 C352 400 354 340 346 266 L256 336 Z" fill="#7c3f58"/>
+    <path d="M256 336 V454" fill="none" stroke-width="4"/>
+    <g fill="#e8b94a" stroke="none"><circle cx="240" cy="372" r="5"/><circle cx="240" cy="398" r="5"/><circle cx="240" cy="424" r="5"/></g>
+
+    <!-- pocket watch on its chain -->
+    <path d="M334 330 C334 350 330 358 322 366" fill="none" stroke="#e8b94a" stroke-width="4"/>
+    <g transform="translate(316 396)">
+      <circle r="30" fill="#f3c95b"/>
+      <circle r="21" fill="#fffdf2" stroke-width="3"/>
+      <rect x="-5" y="-39" width="10" height="10" rx="3" fill="#f3c95b" stroke-width="3"/>
+      <path d="M0 0 V-14 M0 0 L10 6" stroke-width="3.5"/>
+    </g>
+
+    <!-- eyes -->
+    <circle cx="196" cy="108" r="48" fill="#fff"/>
+    <circle cx="316" cy="100" r="48" fill="#fff"/>
+    <g stroke="none">
+      <circle cx="212" cy="116" r="14" fill="#111"/><circle cx="332" cy="108" r="14" fill="#111"/>
+      <circle cx="217" cy="111" r="4.5" fill="#fff"/><circle cx="337" cy="103" r="4.5" fill="#fff"/>
+    </g>
+
+    <!-- muzzle, nose, buck teeth -->
+    <ellipse cx="256" cy="190" rx="42" ry="28" fill="#f6d2a2"/>
+    <ellipse cx="256" cy="166" rx="21" ry="14" fill="#111" stroke="none"/>
+    <g fill="#fff" stroke-width="5">
+      <path d="M232 192 h24 v32 a6 6 0 0 1 -6 6 h-12 a6 6 0 0 1 -6 -6 Z"/>
+      <path d="M256 192 h24 v32 a6 6 0 0 1 -6 6 h-12 a6 6 0 0 1 -6 -6 Z"/>
+    </g>
+
+    <!-- bow tie -->
+    <g fill="#d6455d" stroke-width="5">
+      <path d="M256 268 L208 244 L208 292 Z"/>
+      <path d="M256 268 L304 244 L304 292 Z"/>
+      <rect x="243" y="254" width="26" height="28" rx="6"/>
+    </g>
+  </g>
+</svg>

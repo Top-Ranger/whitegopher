@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · White Gopher</title>
 <link rel="stylesheet" href="/admin/static/admin.css">
-<link rel="icon" href="/admin/static/whitegopher.svg" type="image/svg+xml">
+<link rel="icon" href="/admin/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/admin/static/icon.png">
 </head>
 <body>
 {{if .User.ID}}
 <header><div class="bar">
-  <img class="brand" src="/admin/static/whitegopher.svg" alt="" width="28" height="28">
+  <img class="brand" src="/admin/static/icon.svg" alt="" width="28" height="28">
   <input type="checkbox" id="menu-toggle" class="menu-toggle">
   <label for="menu-toggle" class="menu-btn" aria-label="Menu"><span></span></label>
   <div class="menu">
