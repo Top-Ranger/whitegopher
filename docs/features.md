@@ -44,7 +44,7 @@ root; objects are limited by `limits.max_request_mib` (10 MiB by default).
 - Failed logins, on DAV and in the admin UI, are logged (`login failed` with
   `user`, `ip` and `via`) and rate limited per client address (`login_limit`,
   default 10 per 15 minutes; `429` with `Retry-After`). The address is the
-  rightmost `X-Forwarded-For` entry that is not a trusted proxy.
+  rightmost `X-Forwarded-For` entry that is not a trusted proxy. IPv6 clients are grouped by /64.
 
 Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/passkeys, and no QR code for the TOTP key (enter it by hand or open the `otpauth://` link).
 
