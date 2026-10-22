@@ -218,7 +218,7 @@ func (im *importer) importCalendars() error {
 					p = index.Parsed{UID: uri, Component: ct}
 				}
 				return p, bad
-			}, &im.res.Events); err != nil {
+			}, nil, &im.res.Events); err != nil {
 			return err
 		}
 	}
@@ -269,7 +269,7 @@ func (im *importer) importAddressBooks() error {
 					p = index.Parsed{UID: uri, Component: "VCARD"}
 				}
 				return p, bad
-			}, &im.res.Cards); err != nil {
+			}, normalizeVCard, &im.res.Cards); err != nil {
 			return err
 		}
 	}
@@ -277,10 +277,12 @@ func (im *importer) importAddressBooks() error {
 }
 
 // copyObjects streams the objects selected by query (uri, data, etag,
-// component) into collection dst. Objects failing validation are still
-// imported verbatim but without index data, with a warning.
+// component) into collection dst. If norm is set, it may rewrite the data
+// (returning a note for the warning) before it is indexed and stored. Objects
+// failing validation are still imported but without index data, with a warning.
 func (im *importer) copyObjects(dst int64, label, query string, srcID int64,
-	idx func(uri string, data []byte, component string) (index.Parsed, string), counter *int) error {
+	idx func(uri string, data []byte, component string) (index.Parsed, string),
+	norm func([]byte) ([]byte, string), counter *int) error {
 	rows, err := im.src.Query(query, srcID)
 	if err != nil {
 		return err
@@ -312,6 +314,12 @@ func (im *importer) copyObjects(dst int64, label, query string, srcID int64,
 		return err
 	}
 	for _, o := range objs {
+		if norm != nil {
+			if data, note := norm(o.data); note != "" {
+				im.res.warnf("%s/%s: %s", label, o.uri, note)
+				o.data, o.etag = data, "" // the source ETag no longer matches
+			}
+		}
 		p, bad := idx(o.uri, o.data, o.comp)
 		if bad != "" {
 			im.res.warnf("%s/%s: failed validation (%s); imported without index data", label, o.uri, bad)
