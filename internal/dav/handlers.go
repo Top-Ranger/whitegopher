@@ -288,9 +288,16 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		CollectionID: c.ID, URI: t.uri, UID: p.UID, ETag: index.ETag(data), Data: data,
 		Component: p.Component, FirstOcc: p.First, LastOcc: p.Last,
 	}
+	// Scheduling acts for the owner: a read-write sharee edits on the owner's
+	// behalf, so invitations and replies go out as the owner.
+	actor, err := s.actorFor(u, c)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	var oldData []byte
 	var prev store.Object
-	if isCal && c.Access == "" { // implicit scheduling acts for the owner only
+	if isCal {
 		if p, err := s.Store.GetObject(c.ID, t.uri); err == nil {
 			prev, oldData = p, p.Data
 		}
@@ -299,8 +306,8 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	// significant change to the organizer's copy (or the object is new to
 	// scheduling), cleared when the object stops being a scheduling object.
 	cond.KeepScheduleTag = true
-	if isCal && c.Access == "" {
-		scheduling, significant := s.sched().Classify(u, oldData, data)
+	if isCal {
+		scheduling, significant := s.sched().Classify(actor, oldData, data)
 		switch {
 		case !scheduling:
 			cond.KeepScheduleTag = false
@@ -330,11 +337,11 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 		s.fail(w, r, err)
 		return
 	}
-	if isCal && c.Access == "" {
+	if isCal {
 		// Implicit scheduling. It may rewrite the stored copy to record
 		// delivery status; then the ETag we would report is stale, so omit it.
 		noReply := strings.EqualFold(strings.TrimSpace(r.Header.Get("Schedule-Reply")), "F")
-		if rewritten := s.sched().ProcessPut(u, oldData, data, noReply); rewritten != nil {
+		if rewritten := s.sched().ProcessPut(actor, oldData, data, noReply); rewritten != nil {
 			o.Data, o.ETag = rewritten, index.ETag(rewritten)
 			if p, bad := index.Calendar(rewritten, strings.Split(c.Components, ",")); bad == "" {
 				o.FirstOcc, o.LastOcc = p.First, p.Last
@@ -360,6 +367,15 @@ func (s *Server) put(w http.ResponseWriter, r *http.Request, u store.User, t tar
 	} else {
 		w.WriteHeader(http.StatusNoContent)
 	}
+}
+
+// actorFor returns the user scheduling acts for when u writes to c: the
+// owner for a shared collection, else u.
+func (s *Server) actorFor(u store.User, c store.Collection) (store.User, error) {
+	if c.Access == "" {
+		return u, nil
+	}
+	return s.Store.UserByID(c.OwnerID)
 }
 
 // withinQuota checks that storing size bytes at uri in c keeps the collection
@@ -453,9 +469,7 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 					w.WriteHeader(http.StatusPreconditionFailed)
 					return
 				}
-				if c.Access == "" {
-					oldData = prev.Data
-				}
+				oldData = prev.Data
 			}
 		}
 		err := s.Store.DeleteObject(c.ID, t.uri, m)
@@ -471,7 +485,12 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request, u store.User, t 
 			return
 		}
 		if oldData != nil {
-			s.sched().ProcessDelete(u, oldData, strings.EqualFold(strings.TrimSpace(r.Header.Get("Schedule-Reply")), "F"))
+			actor, aerr := s.actorFor(u, c)
+			if aerr != nil {
+				s.fail(w, r, aerr)
+				return
+			}
+			s.sched().ProcessDelete(actor, oldData, strings.EqualFold(strings.TrimSpace(r.Header.Get("Schedule-Reply")), "F"))
 		}
 	default:
 		http.Error(w, "cannot delete this resource", http.StatusForbidden)

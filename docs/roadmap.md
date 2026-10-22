@@ -18,7 +18,6 @@ sharing especially), and the results decide the order of everything below.
 - Invitation notifications for the CalendarServer sharing protocol
   (accept/decline), and `DAV:share-resource`.
 - Optional read-only public links.
-- Scheduling on behalf of the owner for read-write sharees (delegation).
 
 ## Security and operations
 

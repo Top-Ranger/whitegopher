@@ -186,8 +186,9 @@ func TestSharedAddressBookAndNameCollision(t *testing.T) {
 }
 
 func TestSharedCalendarNoScheduling(t *testing.T) {
-	// Edits through a read-write share are plain writes: no iTIP is sent on
-	// behalf of the owner.
+	// Edits through a read-write share schedule on the owner's behalf, but
+	// with nobody to tell (the only attendee is the owner) nothing is sent
+	// and the object is not rewritten.
 	e := newSchedEnv(t, nil)
 	a, b := e.alice, e.bob
 	a.req("POST", "/dav/calendars/alice/main/", shareBody("set", "mailto:bob@example.com", "<CS:read-write/>"), "Content-Type", "application/xml")

@@ -120,10 +120,11 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   event the user organizes or one from a different organizer. galdav does not
   fetch mail itself: your mail server pipes messages to it (see the deployment
   guide).
+- Edits through a read-write share schedule **on the owner's behalf**:
+  invitations, updates, cancellations and replies go out as the owner.
 - Explicit scheduling: iTIP messages and free-busy requests POSTed to the outbox.
 
-Limits: edits made through a read-write share send no
-scheduling messages. The `SCHEDULE-STATUS` codes follow my reading of the RFCs
+Limits: The `SCHEDULE-STATUS` codes follow my reading of the RFCs
 and should be checked against real clients.
 
 ## Free-busy

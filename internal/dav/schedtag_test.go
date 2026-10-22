@@ -133,3 +133,32 @@ func TestScheduleTagAndSignificantChanges(t *testing.T) {
 	has(t, g, "PARTSTAT=ACCEPTED")
 	lacks(t, g, "PARTSTAT=TENTATIVE")
 }
+
+func TestSharedCalendarEditsScheduleAsOwner(t *testing.T) {
+	mail := &captureMail{}
+	e := newSchedEnv(t, mail)
+	a, b := e.alice, e.bob
+	st, body, _ := a.req("POST", "/dav/calendars/alice/main/", shareBody("set", "mailto:bob@example.com", "<CS:read-write/>"), "Content-Type", "application/xml")
+	expect(t, st, 200, body)
+
+	// Bob creates an event in Alice's calendar organized by Alice: the
+	// invitation goes out from Alice, and the stored copy records the result.
+	path := "/dav/calendars/bob/main/team.ics"
+	st, body, h := b.req("PUT", path, invite("team", "Team", "0", "", carolAtt))
+	expect(t, st, 201, body)
+	if tagOf(h) == "" {
+		t.Fatal("no Schedule-Tag for a scheduling object written through a share")
+	}
+	if mail.count() != 1 || mail.sent[0].From != "alice@example.com" || mail.sent[0].Method != "REQUEST" {
+		t.Fatalf("mail: %+v", mail.sent)
+	}
+	_, got, _ := a.req("GET", "/dav/calendars/alice/main/team.ics", "")
+	has(t, unfold(got), "SCHEDULE-STATUS=1.1:mailto:carol@external.org")
+
+	// Deleting through the share cancels on the owner's behalf.
+	st, body, _ = b.req("DELETE", path, "")
+	expect(t, st, 204, body)
+	if mail.count() != 2 || mail.sent[1].Method != "CANCEL" || mail.sent[1].From != "alice@example.com" {
+		t.Fatalf("mail: %+v", mail.sent)
+	}
+}
