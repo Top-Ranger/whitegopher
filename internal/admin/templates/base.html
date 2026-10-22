@@ -10,7 +10,10 @@
 <body>
 {{if .User.ID}}
 <header><div class="bar">
-  <a class="brand" href="/admin/">galdav</a>
+  <img class="brand" src="/admin/static/galdav.svg" alt="" width="28" height="28">
+  <input type="checkbox" id="menu-toggle" class="menu-toggle">
+  <label for="menu-toggle" class="menu-btn" aria-label="Menu"><span></span></label>
+  <div class="menu">
   <nav aria-label="Main">
     <a href="/admin/"{{if eq .Nav "dashboard"}} class="active" aria-current="page"{{end}}>Collections</a>
     {{if .User.IsAdmin}}<a href="/admin/users"{{if eq .Nav "users"}} class="active" aria-current="page"{{end}}>Users</a>{{end}}
@@ -21,6 +24,7 @@
     <span class="muted">{{.User.Username}}</span>
     <button class="secondary" type="submit">Sign out</button>
   </form>
+  </div>
 </div></header>
 {{end}}
 <main>

@@ -77,7 +77,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request, sess *session
 		s.fail(w, err)
 		return
 	}
-	s.render(w, r, "dashboard", http.StatusOK, page{Title: "Dashboard", Nav: "dashboard", Data: d})
+	s.render(w, r, "dashboard", http.StatusOK, page{Title: "Collections", Nav: "dashboard", Data: d})
 }
 
 var slugStrip = regexp.MustCompile(`[^a-z0-9]+`)
@@ -116,7 +116,7 @@ func (s *Server) slugFor(ownerID int64, kind, wanted, name string) (string, bool
 
 func (s *Server) dashboardError(w http.ResponseWriter, r *http.Request, sess *session, msg string) {
 	d, _ := s.dashboardData(sess.User.ID)
-	s.render(w, r, "dashboard", http.StatusUnprocessableEntity, page{Title: "Dashboard", Nav: "dashboard", Data: d, Error: msg})
+	s.render(w, r, "dashboard", http.StatusUnprocessableEntity, page{Title: "Collections", Nav: "dashboard", Data: d, Error: msg})
 }
 
 func (s *Server) createCollection(w http.ResponseWriter, r *http.Request, sess *session) {
