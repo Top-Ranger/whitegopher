@@ -13,11 +13,6 @@ The checklist, test data and seed script are in
 [client-testing.md](client-testing.md). Fix whatever surfaces. This is the biggest open risk (scheduling and Apple
 sharing especially), and the results decide the order of everything below.
 
-## Protocol completeness
-
-- Partial `calendar-data` retrieval and `expand` in `calendar-query` /
-  `calendar-multiget` (some clients rely on `expand`).
-
 ## Sharing
 
 - Invitation notifications for the CalendarServer sharing protocol

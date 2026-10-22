@@ -66,10 +66,15 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/p
   `addressbook-multiget`, `addressbook-query` (`anyof`/`allof`, `contains`,
   `equals`, `starts-with`, `ends-with`), `sync-collection` (RFC 6578),
   `free-busy-query`.
+- Partial `calendar-data` (`comp` / `prop` / `allprop` / `allcomp`), `expand`
+  (instances of a series within a window, in UTC, or as dates for all-day
+  events; the moved instances of overrides at their new time) and
+  `limit-recurrence-set`, in `calendar-query`, `calendar-multiget` and
+  `sync-collection`.
 
 Limits: quotas count object data only, are checked just before a write (so
 concurrent uploads can overshoot slightly) and do not stop scheduling from
-delivering invitations into a full mailbox; no partial `calendar-data` retrieval or `expand`; a time-range query
+delivering invitations into a full mailbox; a time-range query
 matches a moved recurrence instance at its original time too (rare false
 positive); times with non-IANA `TZID`s (e.g. Windows zone names) are treated as
 unindexed, which keeps queries correct but slower;

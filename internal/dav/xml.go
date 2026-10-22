@@ -26,6 +26,8 @@ type propfind struct {
 	allProp  bool
 	propName bool
 	props    []xml.Name
+	// calData narrows or expands calendar-data in REPORT responses.
+	calData *calDataSpec
 }
 
 func parsePropfind(r io.Reader) (propfind, error) {

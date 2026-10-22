@@ -331,9 +331,9 @@ func reportSet(reports ...string) string {
 }
 
 // withData adds the calendar-data/address-data property to an object resource.
-func withData(r resource, c store.Collection, o store.Object) resource {
+func withData(r resource, c store.Collection, o store.Object, pf propfind) resource {
 	if c.Kind == store.KindCalendar {
-		r.props[cal("calendar-data")] = esc(string(o.Data))
+		r.props[cal("calendar-data")] = esc(string(pf.calData.render(o.Data)))
 	} else {
 		r.props[card("address-data")] = esc(string(o.Data))
 	}

@@ -199,3 +199,9 @@ func writeLine(b *bytes.Buffer, name, value string) {
 }
 
 func utc(t time.Time) string { return t.UTC().Format("20060102T150405Z") }
+
+// Encode serialises cal with galdav's own writer (see above).
+func Encode(cal *ical.Calendar) []byte { return encode(cal) }
+
+// CloneComponent returns a deep copy of c.
+func CloneComponent(c *ical.Component) *ical.Component { return cloneComp(c) }

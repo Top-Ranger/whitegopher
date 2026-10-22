@@ -22,6 +22,10 @@ import (
 type propList struct {
 	Items []struct {
 		XMLName xml.Name
+		// Children of calendar-data (ignored for other properties).
+		Comp   *compXML `xml:"urn:ietf:params:xml:ns:caldav comp"`
+		Expand *spanXML `xml:"urn:ietf:params:xml:ns:caldav expand"`
+		Limit  *spanXML `xml:"urn:ietf:params:xml:ns:caldav limit-recurrence-set"`
 	} `xml:",any"`
 }
 
@@ -30,6 +34,9 @@ func (p *propList) propfind() propfind {
 	if p != nil {
 		for _, it := range p.Items {
 			pf.props = append(pf.props, it.XMLName)
+			if it.XMLName == cal("calendar-data") {
+				pf.calData = newCalData(it.Comp, it.Expand, it.Limit)
+			}
 		}
 	}
 	return pf
@@ -101,6 +108,7 @@ func (s *Server) multiget(w http.ResponseWriter, r *http.Request, u store.User, 
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	pf := req.Prop.propfind()
 	base := s.collHref(areaOf(c.Kind), u.Username, c.Slug)
 	var out []resource
 	for _, h := range req.Hrefs {
@@ -118,9 +126,9 @@ func (s *Server) multiget(w http.ResponseWriter, r *http.Request, u store.User, 
 			s.fail(w, r, err)
 			return
 		}
-		out = append(out, withData(s.objectRes(u, c, o), c, o))
+		out = append(out, withData(s.objectRes(u, c, o), c, o, pf))
 	}
-	writeMultistatus(w, req.Prop.propfind(), out, "")
+	writeMultistatus(w, pf, out, "")
 }
 
 func (s *Server) syncCollection(w http.ResponseWriter, r *http.Request, u store.User, c store.Collection, body []byte) {
@@ -161,7 +169,7 @@ func (s *Server) syncCollection(w http.ResponseWriter, r *http.Request, u store.
 		}
 		res := s.objectRes(u, c, o)
 		if wantData {
-			res = withData(res, c, o)
+			res = withData(res, c, o, pf)
 		}
 		out = append(out, res)
 		return nil
@@ -206,7 +214,7 @@ func (s *Server) syncCollection(w http.ResponseWriter, r *http.Request, u store.
 func (s *Server) respondObjects(w http.ResponseWriter, u store.User, c store.Collection, pf propfind, objs []store.Object) {
 	out := make([]resource, 0, len(objs))
 	for _, o := range objs {
-		out = append(out, withData(s.objectRes(u, c, o), c, o))
+		out = append(out, withData(s.objectRes(u, c, o), c, o, pf))
 	}
 	writeMultistatus(w, pf, out, "")
 }
