@@ -18,7 +18,8 @@ users, by email with outsiders in both directions (scheduling, RFC 6638, iMIP);
 sharing between users, read-only or read-write, with optional invitations and
 read-only public links; a web admin UI with two-factor sign-in and password
 reset by email; quotas, rate limiting, access log and Prometheus metrics; and a
-a generic importer with a documented format for migrating from other servers.
+a generic importer with a documented format for migrating from other servers
+(converters: [whitegopher-contrib](https://github.com/bitflipp/whitegopher-contrib)).
 
 ## Documentation
 
