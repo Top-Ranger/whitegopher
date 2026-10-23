@@ -2,7 +2,7 @@
 
 A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
 MIT licensed. Clean-room: implemented from the RFCs and observed client
-behaviour, not from the source of any other CalDAV/CardDAV server.
+behavior, not from the source of any other CalDAV/CardDAV server.
 
 **Status: not yet tested with real clients** (DAVx5, iOS/macOS, Thunderbird).
 The automated suite is extensive, but expect client-specific quirks.
@@ -17,9 +17,8 @@ partial data and `expand`) and free-busy; invitations and replies between
 users, by email with outsiders in both directions (scheduling, RFC 6638, iMIP);
 sharing between users, read-only or read-write, with optional invitations and
 read-only public links; a web admin UI with two-factor sign-in and password
-reset by email; quotas, rate limiting, access log and Prometheus metrics; and a
-a generic importer with a documented format for migrating from other servers
-(converters: [whitegopher-contrib](https://github.com/bitflipp/whitegopher-contrib)).
+reset by email; quotas, rate limiting, access log and Prometheus metrics; and a generic importer with a documented format for
+migrating from other servers (converters: [whitegopher-contrib](https://github.com/bitflipp/whitegopher-contrib)).
 
 ## Documentation
 
@@ -81,7 +80,7 @@ touching concurrency.
 
 The server stores everything in MySQL/MariaDB.
 
-## Dependencies and licences
+## Dependencies and licenses
 
 White Gopher is MIT. Direct dependencies are MIT/BSD/Apache-2.0 licensed except
 `github.com/go-sql-driver/mysql`, which is MPL-2.0 (file-level copyleft: it

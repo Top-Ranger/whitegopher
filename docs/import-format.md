@@ -99,7 +99,7 @@ Each file in `objects/` is the complete body of one object, as a client would
   the event/task and any recurrence overrides;
 - address books: a single vCard (RFC 6350 / RFC 2426 v3.0).
 
-Requirements and behaviour:
+Requirements and behavior:
 
 - **UTF-8 only.** A file that is not valid UTF-8 is skipped with a warning.
   Converters must transcode legacy charsets and decode non-standard encodings
@@ -113,7 +113,7 @@ Requirements and behaviour:
   working.
 - Several objects may share a UID.
 
-## Behaviour of the importer
+## Behavior of the importer
 
 - **Idempotent.** Existing users and collections are reused; objects are
   overwritten by URI. Repeat runs are safe.

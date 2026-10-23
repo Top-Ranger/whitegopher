@@ -45,7 +45,6 @@ root; objects are limited by `limits.max_request_mib` (10 MiB by default).
   (clients cannot answer a code prompt), so the account password cannot bypass
   it. An administrator can switch it off for a user who lost their device.
 - Users only reach their own namespace (and collections shared with them).
-
 - Failed logins, on DAV and in the admin UI, are logged (`login failed` with
   `user`, `ip` and `via`) and rate limited per client address (`login_limit`,
   default 10 per 15 minutes; `429` with `Retry-After`). The address is the
@@ -60,9 +59,8 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/p
   `DAV:quota-not-exceeded`; calendar and address book home sets report
   `quota-used-bytes` / `quota-available-bytes` (RFC 4331) when a quota applies.
   Shared collections count against their owner.
-
 - Calendars (events, tasks, journals) and address books, with name,
-  description, colour, order and allowed component types.
+  description, color, order and allowed component types.
 - Objects: `PUT` with `If-Match` / `If-None-Match`, ETags, validation
   (iCalendar 2.0, vCard 2.1/3.0/4.0, one UID per object, allowed component
   types) and UID-conflict detection (`no-uid-conflict`). `If-Match` is
@@ -78,7 +76,7 @@ Limits: the rate limit is in memory and per process. No LDAP/OIDC, no WebAuthn/p
   events; the moved instances of overrides at their new time) and
   `limit-recurrence-set`, in `calendar-query`, `calendar-multiget` and
   `sync-collection`.
-- `addressbook-query` honours `<limit><nresults>`: the first matches are sent
+- `addressbook-query` honors `<limit><nresults>`: the first matches are sent
   and the collection gets `507` with `number-of-matches-within-limits`.
 - Objects carry `Last-Modified` (and `DAV:getlastmodified`); a `GET` with
   `If-Modified-Since` and no `If-None-Match` can answer `304`.
@@ -152,7 +150,7 @@ that send `If-Match` are not affected.
   (per-recipient `schedule-response`).
 - Busy time comes from all of a user's calendars that are not marked
   transparent (`schedule-calendar-transp`), with recurrences expanded, overrides
-  and cancelled instances honoured, `TRANSP` and `STATUS` respected, tentative
+  and cancelled instances honored, `TRANSP` and `STATUS` respected, tentative
   time reported separately and declined invitations ignored.
 
 By default **any authenticated user can query anyone's free-busy** (times
@@ -166,7 +164,7 @@ towards the sharee's availability.
 - A calendar or address book can be shared with other local users, read-only or
   read-write. By default shares are accepted automatically: the collection
   appears in the sharee's home set (named `<owner>-<name>` if the name is taken)
-  and syncs like any other. Each sharee keeps their own name, colour and order.
+  and syncs like any other. Each sharee keeps their own name, color and order.
 - With `sharing.require_accept` a new share is an **invitation** that waits for
   the sharee: in the admin UI (*Invitations* on the start page) or from the
   notification in a CalendarServer-style client. Declining keeps the collection
@@ -211,7 +209,7 @@ no `DAV:sharees` / `DAV:invite` properties, no administrator access level.
   address and 3 per account per hour. It ends all sessions, and two-factor, if
   on, stays on.
 - Protections: HttpOnly SameSite=Lax cookies (Secure behind HTTPS), CSRF
-  tokens, cross-origin POST rejection, strict content-security policy, login
+  tokens, cross-origin POST rejection, strict content security policy, login
   rate limiting per client address (proxy-aware).
 
 Limits: no audit log, no

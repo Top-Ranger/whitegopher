@@ -13,7 +13,7 @@ evidence described in [section 3](#3-capturing-evidence).
 
 Statements about what a client "should" do come from the protocols and from
 what these clients are generally known to do, not from observation against
-whitegopher. **Where reality differs, reality wins:** note it and report it.
+White Gopher. **Where reality differs, reality wins:** note it and report it.
 
 Contents: [1 Preparation](#1-preparation) · [2 Scenarios](#2-scenarios) ·
 [3 Evidence](#3-capturing-evidence) · [4 Results](#4-record-the-results) ·
@@ -116,7 +116,7 @@ If these fail, fix the deployment first; clients will only add confusion.
 
 Scenario IDs are used in the result table. For each, "Client" is what you should
 see on the device; "Server" is how to confirm what White Gopher holds. Run each
-scenario in every client the matrix in [5](#5-client-specific-notes) marks as
+scenario in every client the client notes in [5](#5-client-specific-notes) marks as
 applicable. If a client has no UI for something, mark it *n/a*, not *fail*.
 
 ### D. Account setup and discovery
@@ -124,7 +124,7 @@ applicable. If a client has no UI for something, mark it *n/a*, not *fail*.
 | ID | Steps | Expect |
 |---|---|---|
 | **D1** | Add the account using the host name only (iOS/macOS) or the base URL `…/dav/` (DAVx5). | Setup completes without errors or certificate warnings; no manual path fiddling. |
-| **D2** | After setup, list the calendars and address books. | CT Events, CT Tasks (task list/reminders) and CT Contacts appear with the right names and colours (CT Events blue, CT Tasks red). `inbox` and `outbox` are **not** shown as ordinary calendars. |
+| **D2** | After setup, list the calendars and address books. | CT Events, CT Tasks (task list/reminders) and CT Contacts appear with the right names and colors (CT Events blue, CT Tasks red). `inbox` and `outbox` are **not** shown as ordinary calendars. |
 | **D3** | Enter a wrong password during setup. | Clear authentication error, no hang, no account half-created. |
 | **D4** | Remove the account and add it again. | Same result as D1/D2; nothing duplicated. |
 
@@ -141,7 +141,7 @@ shown in the **device's** time zone, so convert when checking.
 | **R4** | `floating.ics` | 12:00–13:00 local, on the same clock time wherever the device is. |
 | **R5** | `rich.ics` | title with é, ☕, 日本語 intact; location "Zürich, Bahnhofstraße 1"; description shows two lines then the long folded text **without** stray spaces or breaks at fold points; alarm 15 minutes before; category and URL present if the client shows them. |
 | **R6** | `todo.ics`, `todo-undated.ics` (task clients only) | both tasks present; the first with a due date and high priority. |
-| **R7** | contacts | Ada Lovelace (work email, mobile number, organisation); Zoë Müller-Åström (nickname 日本語, home address in Zürich, birthday 12 April 1985, folded note intact); Grace Hopper (vCard 4.0: email and `tel:` number); contact with a photo (a 1×1 pixel, so it only has to load without errors). |
+| **R7** | contacts | Ada Lovelace (work email, mobile number, organization); Zoë Müller-Åström (nickname 日本語, home address in Zürich, birthday 12 April 1985, folded note intact); Grace Hopper (vCard 4.0: email and `tel:` number); contact with a photo (a 1×1 pixel, so it only has to load without errors). |
 | **R8** | Server: `dav -X PROPFIND` the calendar and compare the object count with what the client shows. | Same number of items. |
 
 ### W. Writing from the client
@@ -170,7 +170,7 @@ device or client.
 | **C4** | Create a contact **group** if the client has groups. | Either syncs sensibly or is a documented client limitation; note which. |
 | **C5** | Search contacts for "müller" (case/accents) on the client. | Client-side search works on synced data. (Server-side `addressbook-query` is covered by the automated tests; this just checks the client doesn't choke.) |
 
-### Y. Sync behaviour
+### Y. Sync behavior
 
 | ID | Steps | Expect |
 |---|---|---|
@@ -181,7 +181,7 @@ device or client.
 | **Y5** | In the DB, simulate a lost sync state: `DELETE FROM changes WHERE collection_id = <id>;`, then sync a client that already has the account. | Client recovers with a full resync (White Gopher answers `valid-sync-token` errors for stale tokens); no stuck error state. |
 | **Y6** | Restart White Gopher while a client is syncing. | Client retries and completes; no data loss. |
 | **Y7** | Stop the proxy for five minutes, edit on the client, start it again. | Client uploads its changes once reachable. |
-| **Y8** | Force-refresh/"Reset synchronisation" in the client. | Everything redownloaded, no duplicates. |
+| **Y8** | Force-refresh/"Reset synchronization" in the client. | Everything redownloaded, no duplicates. |
 
 ### T. Tasks
 
@@ -189,7 +189,7 @@ Covered by R6 and W7; additionally:
 
 | ID | Steps | Expect |
 |---|---|---|
-| **T1** | Create a task with a repeat rule and complete one instance. | Next instance appears (client behaviour); server object stays valid iCalendar. |
+| **T1** | Create a task with a repeat rule and complete one instance. | Next instance appears (client behavior); server object stays valid iCalendar. |
 | **T2** | Sub-tasks / `RELATED-TO` (only if the client supports them). | Round-trips or is cleanly ignored. |
 
 ### I. Invitations (scheduling)
@@ -210,7 +210,7 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **I9** | Same without SMTP configured. | The event saves normally; `SCHEDULE-STATUS=5.3` for that attendee; the client does not show an error loop. |
 | **I10** | Bob deletes an event he was invited to, without answering. | Alice sees bob as **declined**. |
 | **I11** | Alice removes bob from the attendee list of an existing event. | Bob's copy is cancelled. |
-| **I12** | Invite bob to a **recurring** event; bob accepts one occurrence only (clients ask "this event only?"). | Note the outcome: White Gopher records replies for existing overrides and the series; a reply for a single plain instance of a series is not (yet) recorded (see [features.md](features.md)). Make sure nothing breaks. |
+| **I12** | Invite bob to a **recurring** event; bob accepts one occurrence only (clients ask "this event only?"). | Note the outcome: a reply for a single instance creates the matching override in the organizer's copy, as in S3 (see [features.md](features.md)). Make sure nothing breaks. |
 | **I13** | Use the client's **"Inbox"/"Invitations"** view (Apple) or invitation panel (Thunderbird): accept from there instead of from the event. | Same result as I3. |
 | **I14** | Invite bob from a client that can also send invitations by email on its own (Thunderbird, depending on settings). | Bob receives **one** invitation, not two (one from the client and one from White Gopher). If a client marks attendees `SCHEDULE-AGENT=CLIENT`, White Gopher leaves delivery to it; check the stored `ATTENDEE` lines to see which happened. |
 
@@ -229,12 +229,11 @@ for I8/I9 the external address. Use **timed events in the future.**
 | **H1** | As alice, share *CT Events* with bob **read-only** (admin UI: collection page → Sharing). Sync bob's client. | Bob's client lists the calendar (named like alice's) and shows its events. |
 | **H2** | On bob's client try to add/edit/delete an event in it. | The client **refuses** (read-only calendar) or, if it lets you try, the change fails cleanly with a message and does not stay in the client as if saved. Server: nothing changed. |
 | **H3** | Upgrade bob to **can edit**; sync. | Bob can now create/edit/delete; alice sees the changes. |
-| **H4** | Bob renames the shared calendar and changes its colour **on his client**. | Only bob's view changes; alice's name/colour are unchanged. |
+| **H4** | Bob renames the shared calendar and changes its color **on his client**. | Only bob's view changes; alice's name/color are unchanged. |
 | **H5** | Bob removes (unsubscribes from) the shared calendar on his client. | It leaves bob's account; alice's calendar and events are untouched. |
 | **H6** | Alice stops sharing. | The calendar disappears from bob's client after sync; no error loop, no orphaned local copy. |
 | **H7** | Share an **address book** read-only with bob. | Contacts visible to bob; edits refused. |
-| **H8** | (Apple only) Share from alice's iOS/macOS client via the sharing UI instead of the admin UI. | Either works (bob gets the calendar immediately) or fails clearly; record exactly what the client says. This exercises the `CS:share` protocol, which is the least certain part of whitegopher. |
-
+| **H8** | (Apple only) Share from alice's iOS/macOS client via the sharing UI instead of the admin UI. | Either works (bob gets the calendar immediately) or fails clearly; record exactly what the client says. This exercises the `CS:share` protocol, which is the least certain part of White Gopher. |
 | **H9** | Set `sharing.require_accept: true`, restart, and share *CT Events* with bob from alice's admin UI. Look at bob's client, then at bob's admin start page. | The calendar is **not** in bob's client yet; bob's start page lists an invitation. Accept it: the calendar appears after the next sync. Decline a second one: it never appears. |
 | **H10** | (Apple only) With `require_accept` on, share from alice's iOS/macOS client. | Bob's Calendar app shows an invitation (it reads `CS:notification-URL`); accepting adds the calendar, declining does not, and alice's client shows the answer. Record exactly what each side shows; this is the least certain part of the sharing protocol. |
 | **H11** | In the admin UI turn on a **public link** for *CT Events*, subscribe to it from a calendar app that supports internet calendar subscriptions (an `https://…/public/<token>.ics` URL, no login). Then press *New address*. | Events show up read-only. After *New address* the old subscription fails cleanly (404) and the new one works. Turning the link off ends access. |
@@ -445,7 +444,7 @@ and where White Gopher is most likely to disagree.
 ### DAVx5 (Android)
 
 Applicable: D, R, W, C, Y, T (with a task app such as tasks.org or OpenTasks
-installed), A, X, H1–H7. Not applicable: I-scenarios as an organizer UI differs
+installed), A, X, H1–H7. Not applicable: I-scenarios, because the organizer UI differs
 by calendar app (use the calendar app you actually use, e.g. Fossify/Google
 Calendar, for I-scenarios); F (DAVx5 has no free/busy view).
 
@@ -475,12 +474,12 @@ and sharing.
 - Setup: *Settings → Calendar → Accounts → Add Account → Other → Add CalDAV
   Account* (and CardDAV for contacts), server `cal.example.com`, then user and
   password. It should discover everything via `/.well-known/` (D1). If setup
-  fails, capture the traffic: **check which path the client starts at**: `/.well-known/…` and `PROPFIND /`
+  fails, capture the traffic and **check which path the client starts at**: `/.well-known/…` and `PROPFIND /`
   are answered; anything else (e.g. `/dav.php`) is not.
 - Tasks appear in **Reminders** (the CT Tasks list) and need the calendar
   object type `VTODO` (R6, W7).
 - Notice whether Apple adds `If-Schedule-Tag-Match`/`Schedule-Tag` headers when
-  editing invitations (White Gopher honours them; a `412` after an organizer
+  editing invitations (White Gopher honors them; a `412` after an organizer
   edit is expected, a `412` on a plain edit is a finding).
 - **Invitations (I2, I13):** Apple shows invitations in the Calendar app's
   *Inbox* and as events needing action; check both, and check that the reply
@@ -509,7 +508,7 @@ A, X. Tasks are shown in the same calendars (R6, W7).
   capabilities White Gopher advertises (`calendar-auto-schedule`). **I14 is the
   important check:** invitations must be sent once, not by both the client
   (email) and the server.
-- Thunderbird polls the scheduling inbox and honours `current-user-privilege-set`
+- Thunderbird polls the scheduling inbox and honors `current-user-privilege-set`
   for read-only calendars (H2).
 - Free/busy (F1) uses the outbox; open an event, add an attendee and use the
   *Availability* tab.
