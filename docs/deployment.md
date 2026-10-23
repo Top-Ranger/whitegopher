@@ -15,7 +15,7 @@ Contents: [requirements](#requirements) · [build](#1-build-and-install) ·
 [database](#2-database) · [service user and config](#3-service-user-and-configuration) ·
 [first admin](#4-create-the-first-administrator) · [systemd](#5-run-it-with-systemd) ·
 [TLS proxy](#6-put-a-tls-proxy-in-front) · [clients](#7-connect-clients) ·
-[Baikal migration](#8-migrating-from-baikal) · [operations](#operations) ·
+[importing](#8-importing-from-another-server) · [operations](#operations) ·
 [security checklist](#security-checklist) · [troubleshooting](#troubleshooting)
 
 ## Requirements
@@ -75,8 +75,8 @@ Review `/etc/whitegopher/config.yaml`; the defaults in
 decisions to make **now**:
 
 1. **`realm`** is the HTTP Basic realm. Pick a value (e.g. your domain). If
-   you will import from Baikal, use `BaikalDAV` instead until the imported
-   users have signed in once (see [section 8](#8-migrating-from-baikal)).
+   you will import legacy password hashes, use their realm instead until the
+   imported users have signed in once (see [section 8](#8-importing-from-another-server)).
 2. **`proxy.trusted`**: if the proxy runs on another host, add its address.
 
 Full option list: [configuration.md](configuration.md).
@@ -161,33 +161,30 @@ something to sync. The client-testing status is stated in
 [features.md](features.md); before relying on a new installation, work through
 [client-testing.md](client-testing.md) and report anything that misbehaves.
 
-## 8. Migrating from Baikal
+## 8. Importing from another server
 
-1. Install White Gopher as above, but set `realm: "BaikalDAV"` in the config
-   (unless you changed Baikal's realm) **before** importing, so imported
-   password hashes keep working. Do not create users first.
-2. Stop clients from writing to Baikal (or accept that later changes are
-   lost), and take a backup of the Baikal database.
-3. Preview, then import. For Baikal's default SQLite database (usually
-   `Specific/db/db.sqlite`; readable by the user running the command):
+White Gopher imports a directory tree in the documented
+[import format](import-format.md). Write (or find) a converter that produces
+that tree from your old server, then:
+
+1. Install White Gopher as above. If the tree carries legacy password hashes
+   (`digest_ha1`), set `realm` in the config to the realm they were made with
+   **before** importing. Do not create users first.
+2. Stop clients from writing to the old server (or accept that later changes
+   are lost) and back it up.
+3. Preview, then import (the directory must be readable by the service user):
 
    ```sh
    sudo systemd-run --pty --wait --collect --uid=whitegopher --property=EnvironmentFile=/etc/whitegopher/whitegopher.env \
-     /usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml import-baikal -dry-run /path/to/db.sqlite
+     /usr/local/bin/whitegopher -config /etc/whitegopher/config.yaml import -dry-run /path/to/tree
    # review the counts and warnings, then run again without -dry-run
    ```
 
-   For Baikal on MySQL/MariaDB use `import-baikal -mysql 'user:pass@tcp(host:3306)/baikal'`.
    The import can be repeated safely.
-4. Imported users keep their passwords. Give them email addresses (admin UI →
-   Users) so scheduling works, and make at least one an administrator.
-5. Point clients at whitegopher. To keep existing client configurations, let the
-   proxy rewrite Baikal's URL prefix (*untested*): in nginx,
-   `rewrite ^/dav\.php/(.*)$ /dav/$1 last;`. Otherwise re-add the accounts.
-   Either way clients do a full resync once.
-
-Not imported: shared calendars, Baikal's pending scheduling inbox, and its
-settings. A calendar named `inbox` or `outbox` is renamed (reserved names).
+4. Give users email addresses (admin UI → Users) so scheduling works, and make
+   at least one an administrator.
+5. Point clients at White Gopher and re-add the accounts (or have the proxy
+   rewrite the old URL prefix; *untested*). Clients do a full resync once.
 
 ## Inbound email (optional)
 

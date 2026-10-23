@@ -15,9 +15,8 @@ import (
 
 type Config struct {
 	Listen string `yaml:"listen"`
-	// Realm is the HTTP Basic auth realm. It is also part of the HA1 hashes
-	// imported from Baikal, so it must match the old server's realm when
-	// importing its password hashes.
+	// Realm is the HTTP Basic auth realm. It is also part of imported HA1
+	// hashes, so it must match the realm they were made with.
 	Realm string `yaml:"realm"`
 	DB    DB     `yaml:"db"`
 	// BasePath is the URL prefix of the DAV tree.
@@ -127,7 +126,7 @@ type DB struct {
 func Default() Config {
 	return Config{
 		Listen:     ":8080",
-		Realm:      "BaikalDAV",
+		Realm:      "whitegopher",
 		BasePath:   "/dav",
 		Admin:      Admin{Enabled: true},
 		SMTP:       SMTP{Port: 587},

@@ -4,8 +4,9 @@
 # proxy in front (see docs/deployment.md).
 listen: "127.0.0.1:8080"
 
-# HTTP Basic auth realm. It is also part of imported Baikal hashes: when
-# importing from Baikal use "BaikalDAV" until those users have signed in once.
+# HTTP Basic auth realm. It is also part of imported legacy password hashes:
+# when importing them, use the realm they were made with until those users
+# have signed in once.
 realm: "whitegopher"
 
 # The database DSN belongs in the environment file (WHITEGOPHER_DB_DSN), not here.

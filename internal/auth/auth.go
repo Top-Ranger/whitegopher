@@ -24,7 +24,7 @@ import (
 	"github.com/bitflipp/whitegopher/internal/store"
 )
 
-// HA1 returns md5(user:realm:password), the hash Baikal stores. It is only
+// HA1 returns md5(user:realm:password), the legacy hash an import may carry. It is only
 // used to verify imported accounts once; see Verify.
 func HA1(user, realm, password string) string {
 	sum := md5.Sum([]byte(user + ":" + realm + ":" + password))

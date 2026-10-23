@@ -31,7 +31,7 @@ root; objects are limited by `limits.max_request_mib` (10 MiB by default).
 ## Authentication
 
 - HTTP Basic only (use TLS). Passwords are stored as argon2id. Digest is not
-  supported. A password hash imported from Baikal is kept only until that
+  supported. A legacy password hash from an import is kept only until that
   user's first login, which replaces it with argon2id.
 - App passwords (*Account → App passwords*): random per-device credentials
   (`gdp-xxxxx-...`) that work for DAV in place of the account password, shown
@@ -217,13 +217,14 @@ no `DAV:sharees` / `DAV:invite` properties, no administrator access level.
 Limits: no audit log, no
 administrator view of other users' collections, English only.
 
-## Importing from Baikal
+## Importing
 
-`whitegopher import-baikal` copies users (including password hashes), calendars,
-address books and objects from a Baikal SQLite file or a Baikal MySQL/MariaDB
-database. It is idempotent and has a `-dry-run`. Sync tokens are not carried
-over, so clients do one full resync. Shared calendars, the sabre scheduling
-inbox and Baikal's own settings are not imported.
+`whitegopher import DIR` loads users (optionally with legacy password hashes),
+calendars, address books and objects from a directory tree in the documented
+[import format](import-format.md), which converters for other servers can
+produce. It is idempotent and has a `-dry-run`. Sync tokens are not carried
+over, so clients do one full resync. Shares and scheduling state are not part
+of the format.
 
 ## Operations
 

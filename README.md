@@ -1,11 +1,8 @@
 # White Gopher
 
 A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
-MIT licensed. A from-scratch alternative to [Baikal](https://sabre.io/baikal/)
-that can import an existing Baikal installation.
-
-Clean-room: implemented from the RFCs and observed client behaviour, not from
-the source of Baikal or sabre/dav.
+MIT licensed. Clean-room: implemented from the RFCs and observed client
+behaviour, not from the source of any other CalDAV/CardDAV server.
 
 **Status: not yet tested with real clients** (DAVx5, iOS/macOS, Thunderbird).
 The automated suite is extensive, but expect client-specific quirks.
@@ -21,15 +18,16 @@ users, by email with outsiders in both directions (scheduling, RFC 6638, iMIP);
 sharing between users, read-only or read-write, with optional invitations and
 read-only public links; a web admin UI with two-factor sign-in and password
 reset by email; quotas, rate limiting, access log and Prometheus metrics; and a
-one-time importer for Baikal databases.
+a generic importer with a documented format for migrating from other servers.
 
 ## Documentation
 
 | | |
 |---|---|
-| [docs/deployment.md](docs/deployment.md) | install, systemd, TLS proxy, clients, Baikal migration, backups, security, troubleshooting |
+| [docs/deployment.md](docs/deployment.md) | install, systemd, TLS proxy, clients, migration, backups, security, troubleshooting |
 | [docs/configuration.md](docs/configuration.md) | every config option, CLI command, environment variable and endpoint |
 | [docs/features.md](docs/features.md) | what works, and the known limits of each area |
+| [docs/import-format.md](docs/import-format.md) | the import format, for writing converters from other servers |
 | [docs/client-testing.md](docs/client-testing.md) | checklist and test data for trying DAVx5, iOS/macOS and Thunderbird |
 | [docs/roadmap.md](docs/roadmap.md) | what comes next |
 | [deploy/](deploy) | systemd unit, example config and env file, Caddy and nginx configs |
@@ -50,7 +48,7 @@ For a real installation follow [docs/deployment.md](docs/deployment.md).
 ## Development
 
 ```
-cmd/whitegopher/        CLI: serve, useradd, import-baikal
+cmd/whitegopher/        CLI: serve, useradd, import
 internal/server/        HTTP wiring, listeners, graceful shutdown
 internal/buildinfo/     binary version string
 internal/config/        YAML config and environment overrides
@@ -62,7 +60,7 @@ internal/dav/           WebDAV/CalDAV/CardDAV handlers, REPORTs, sharing
 internal/sched/         free-busy, iTIP scheduling, iMIP email
 internal/index/         object validation and occurrence indexing
 internal/admin/         web UI (templates and static assets embedded)
-internal/importer/      one-time Baikal import
+internal/importer/      import of the documented import format
 internal/storetest/     throwaway test databases
 deploy/                 deployment files
 docs/                   documentation
@@ -80,8 +78,7 @@ WHITEGOPHER_TEST_MYSQL_DSN='root@tcp(127.0.0.1:3306)/' go test -p 1 ./...
 `internal/index` and `internal/sched` need no database.) Use `-race` when
 touching concurrency.
 
-The server stores everything in MySQL/MariaDB. SQLite is supported only as a
-read-only source for the Baikal importer.
+The server stores everything in MySQL/MariaDB.
 
 ## Dependencies and licences
 

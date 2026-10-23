@@ -14,14 +14,13 @@ whitegopher [-config FILE] <command>
 | `imip-receive [-no-auth-check] [FILE]` | process one iMIP email (replies and invitations) from FILE or stdin |
 | `version` (or `-version`) | print the version and exit; needs no config or database |
 | `useradd [-admin] [-email ADDRESS] NAME` | create a user; prompts for the password (hidden, twice), or reads one line from stdin when piped; at least 8 characters |
-| `import-baikal [-dry-run] SQLITE_FILE` | import from a Baikal SQLite database |
-| `import-baikal [-dry-run] -mysql DSN` | import from a Baikal MySQL/MariaDB database |
+| `import [-dry-run] DIR` | import a tree in the [import format](import-format.md) |
 
 ## File options
 
 ```yaml
 listen: ":8080"          # address to listen on; use "127.0.0.1:8080" behind a proxy
-realm: "BaikalDAV"       # HTTP auth realm (see below). Default BaikalDAV.
+realm: "whitegopher"     # HTTP auth realm (see below). Default whitegopher.
 base_path: "/dav"        # URL prefix of the DAV tree
 
 db:
@@ -67,11 +66,10 @@ smtp:                    # optional iMIP email for attendees without an account
 
 ### Things worth knowing
 
-- **`realm`** is the HTTP Basic realm. The default `BaikalDAV` is also what
-  Baikal uses, which is what makes imported password hashes
-  (`md5(user:realm:password)`) work: it must match until each imported user
-  has signed in once. After that, or if you never import from Baikal, it can
-  be changed freely.
+- **`realm`** is the HTTP Basic realm. Imported legacy password hashes
+  (`md5(user:realm:password)`, see [import-format.md](import-format.md)) only
+  work while it equals the realm they were made with, until each imported user
+  has signed in once. Otherwise it can be changed freely.
 - **`db.dsn`** must name an existing database; White Gopher creates and migrates
   the tables itself. Special characters (`/`, `@`) in the password break the DSN
   parser, so generate one with `openssl rand -hex 24`. Unix sockets work:

@@ -28,7 +28,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("whitegopher", flag.ContinueOnError)
 	cfgPath := fs.String("config", "config.yaml", "path to config file")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: whitegopher [-config file] <serve|version|imip-receive|useradd [-admin] [-email ADDRESS] NAME|import-baikal [-dry-run] SQLITE_FILE|-mysql DSN>")
+		fmt.Fprintln(os.Stderr, "usage: whitegopher [-config file] <serve|version|imip-receive|useradd [-admin] [-email ADDRESS] NAME|import [-dry-run] DIR>")
 	}
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	if err := fs.Parse(args); err != nil {
@@ -59,8 +59,8 @@ func run(args []string) error {
 	switch fs.Arg(0) {
 	case "serve":
 		return server.Run(cfg, st, buildinfo.Version(version))
-	case "import-baikal":
-		return importBaikal(st, fs.Args()[1:])
+	case "import":
+		return importTree(st, fs.Args()[1:])
 	case "useradd":
 		return useradd(cfg, st, fs.Args()[1:])
 	case "imip-receive":

@@ -19,7 +19,6 @@ sharing especially), and the results decide the order of everything below.
 
 ## Not planned
 
-- SQLite or Postgres as the server's database (SQLite remains only as a
-  Baikal import source).
+- SQLite or Postgres as the server's database.
 - Built-in TLS or ACME: use a reverse proxy.
 - A Docker image (deployment is a static binary plus MariaDB).

@@ -476,7 +476,7 @@ and sharing.
   Account* (and CardDAV for contacts), server `cal.example.com`, then user and
   password. It should discover everything via `/.well-known/` (D1). If setup
   fails, capture the traffic: **check which path the client starts at**: `/.well-known/…` and `PROPFIND /`
-  are answered; anything else (e.g. a Baikal-style `/dav.php`) is not.
+  are answered; anything else (e.g. `/dav.php`) is not.
 - Tasks appear in **Reminders** (the CT Tasks list) and need the calendar
   object type `VTODO` (R6, W7).
 - Notice whether Apple adds `If-Schedule-Tag-Match`/`Schedule-Tag` headers when

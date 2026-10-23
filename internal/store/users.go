@@ -13,7 +13,7 @@ type User struct {
 	DisplayName string
 	// Email is stored lower-case; it is the user's calendar-user address.
 	Email string
-	// DigestHA1 is the md5 hash imported from Baikal. It only lets the user
+	// DigestHA1 is the legacy md5 hash from an import. It only lets the user
 	// sign in once; the first login replaces it with PasswordHash.
 	DigestHA1    string
 	PasswordHash string
