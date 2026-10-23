@@ -1,5 +1,6 @@
 {{define "content"}}
 <div class="card narrow">
+  <div class="hero"><img src="/admin/static/icon.svg" alt="" width="80" height="80"><span>White Gopher</span></div>
   <h1>{{if .IsSetup}}Create the administrator{{else}}Sign in{{end}}</h1>
   {{if .IsSetup}}<p class="muted">No users exist yet. This account will be able to manage all users.</p>{{end}}
   <form method="post" action="{{if .IsSetup}}/admin/setup{{else}}/admin/login{{end}}" class="stack">
