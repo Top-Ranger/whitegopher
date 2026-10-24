@@ -1,6 +1,6 @@
 # White Gopher
 
-*"Oh dear! Oh dear! I shall be too late"*
+*"Oh dear! Oh dear! I shall be too late!"*
    - White Gopher, probably
 
 ![Logo](internal/admin/static/icon.svg)
