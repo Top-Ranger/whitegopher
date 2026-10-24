@@ -52,7 +52,7 @@
       <input type="hidden" name="kind" value="calendar">
       <label>Name <input type="text" name="name" required></label>
       <label>Description <input type="text" name="description"></label>
-      <label>Colour <input type="text" name="color" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"><span class="hint">Hex, e.g. #2f6fed.</span></label>
+      <label>Colour <span class="colorfield"><input type="color" value="#2f6fed" aria-label="Pick a colour"><input type="text" name="color" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></span><span class="hint">Hex, e.g. #2f6fed.</span></label>
       <div class="checks">
         <label class="inline"><input type="checkbox" name="comp_VEVENT" value="1" checked> Events</label>
         <label class="inline"><input type="checkbox" name="comp_VTODO" value="1" checked> Tasks</label>

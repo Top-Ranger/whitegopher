@@ -12,7 +12,7 @@
     <input type="hidden" name="csrf" value="{{$.CSRF}}">
     <label>Name <input type="text" name="name" value="{{.DisplayName}}"></label>
     {{if .IsCal}}
-    <label>Colour <input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"><span class="hint">Hex, e.g. #2f6fed.</span></label>
+    <label>Colour <span class="colorfield"><input type="color" value="#2f6fed" aria-label="Pick a colour"><input type="text" name="color" value="{{.Color}}" placeholder="#2f6fed" pattern="#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?"></span><span class="hint">Hex, e.g. #2f6fed.</span></label>
     <label>Sort order <input type="number" name="order" value="{{.SortOrder}}"><span class="hint">Lower numbers come first in your apps.</span></label>
     {{end}}
     <div class="row"><button type="submit">Save</button> <a class="btn secondary" href="/admin/">Cancel</a></div>

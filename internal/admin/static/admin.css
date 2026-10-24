@@ -89,3 +89,6 @@ code { background: var(--bg); padding: .1rem .35rem; border-radius: var(--radius
 
 .card h1 { margin-bottom: 0; }
 .narrow button[type=submit] { width: 100%; }
+.colorfield { display: flex; gap: var(--space-sm); align-items: center; }
+.colorfield input[type=color] { display: none; width: 2.4rem; height: 2.2rem; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); cursor: pointer; flex: none; }
+.colorfield.enhanced input[type=color] { display: block; }
