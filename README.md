@@ -92,3 +92,9 @@ The server stores everything in MySQL/MariaDB.
 White Gopher is MIT. Direct dependencies are MIT/BSD/Apache-2.0 licensed except
 `github.com/go-sql-driver/mysql`, which is MPL-2.0 (file-level copyleft: it
 only affects modifications to that library's own files, not White Gopher).
+
+## Logo
+
+The logo is derived from the Go gopher, originally designed by
+[Renée French](https://reneefrench.blogspot.com/) and licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
