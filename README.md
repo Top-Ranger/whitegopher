@@ -1,5 +1,10 @@
 # White Gopher
 
+*"Oh dear! Oh dear! I shall be too late!"*
+   - White Gopher, probably
+
+![Logo](internal/admin/static/icon.svg)
+
 A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
 MIT licensed. Clean-room: implemented from the RFCs and observed client
 behavior, not from the source of any other CalDAV/CardDAV server.
