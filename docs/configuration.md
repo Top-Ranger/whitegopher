@@ -30,6 +30,7 @@ db:
 admin:
   enabled: true          # serve the web UI under /admin/
   base_url: ""           # public URL, e.g. "https://cal.example.com"; with smtp, enables password reset by email
+  invites: admin         # who may create self-registration invite links: admin, everyone or off
 
 proxy:
   trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe
@@ -85,6 +86,13 @@ smtp:                    # optional iMIP email for attendees without an account
   (the `Host` header is never trusted for that). Password reset by email is on
   when both `smtp` and `admin.base_url` are set; users need an email address on
   their account.
+- **`admin.invites`** controls invite links, which let one person register
+  their own (non-admin) account. `admin` (default): only administrators can
+  create them; `everyone`: any user can; `off`: the feature and its
+  `/admin/register` page are disabled. Links are single-use, unguessable
+  (256 random bits, stored hashed), expire after 7 days and are shown only
+  once; creators can revoke open ones under **Invites**. The link is built from
+  `admin.base_url` if set, else from the request.
 - **`log.access`** writes one line per request (method, path without query,
   status, bytes, duration in ms, client address, user). `/healthz` is left out.
   Passwords and request bodies are never logged.

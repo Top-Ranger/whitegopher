@@ -53,6 +53,9 @@ admin:
   # Public address of this server. Together with smtp (below) it turns on
   # "Forgot your password?" by email.
   # base_url: "https://cal.example.com"
+  # Who may create single-use invite links for self-registration:
+  # "admin" (default), "everyone" or "off".
+  # invites: admin
 
 # Optional: email invitations to attendees who have no account here.
 # The password goes into WHITEGOPHER_SMTP_PASSWORD.

@@ -208,6 +208,9 @@ no `DAV:sharees` / `DAV:invite` properties, no administrator access level.
   answer whether or not the account exists; at most 10 requests per client
   address and 3 per account per hour. It ends all sessions, and two-factor, if
   on, stays on.
+- Invite links (`admin.invites`: `admin` by default, `everyone` or `off`):
+  single-use, 7-day links under **Invites** that let someone create their own
+  account; bad-token attempts are rate limited per client address.
 - Protections: HttpOnly SameSite=Lax cookies (Secure behind HTTPS), CSRF
   tokens, cross-origin POST rejection, strict content security policy, login
   rate limiting per client address (proxy-aware).

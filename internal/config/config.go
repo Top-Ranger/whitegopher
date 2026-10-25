@@ -111,6 +111,9 @@ type Admin struct {
 	// "https://cal.example.com". With smtp configured it enables password
 	// reset by email (links in the message point here).
 	BaseURL string `yaml:"base_url"`
+	// Invites says who may create single-use invite links that let people
+	// register themselves: "admin" (default), "everyone" (any user) or "off".
+	Invites string `yaml:"invites"`
 }
 
 type DB struct {
@@ -128,7 +131,7 @@ func Default() Config {
 		Listen:     ":8080",
 		Realm:      "whitegopher",
 		BasePath:   "/dav",
-		Admin:      Admin{Enabled: true},
+		Admin:      Admin{Enabled: true, Invites: "admin"},
 		SMTP:       SMTP{Port: 587},
 		Limits:     Limits{MaxRequestMiB: 10},
 		Scheduling: Scheduling{InboxRetentionDays: 90, IMIPRequireAuth: true},
@@ -204,6 +207,11 @@ func (c Config) Validate() error {
 		if u, err := url.Parse(c.Admin.BaseURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 			return fmt.Errorf("admin.base_url %q must be an http(s) URL such as https://cal.example.com", c.Admin.BaseURL)
 		}
+	}
+	switch c.Admin.Invites {
+	case "", "admin", "everyone", "off":
+	default:
+		return fmt.Errorf("admin.invites %q must be \"admin\", \"everyone\" or \"off\"", c.Admin.Invites)
 	}
 	if c.Log.Format != "" && c.Log.Format != "text" && c.Log.Format != "json" {
 		return fmt.Errorf("log.format %q must be \"text\" or \"json\"", c.Log.Format)

@@ -52,6 +52,9 @@ type Server struct {
 	// the feature is off.
 	Mailer  TextMailer
 	BaseURL string
+	// Invites says who may create invite links: "admin" (default, also for
+	// ""), "everyone" or "off".
+	Invites string
 	// Sharing manages share invitations. Defaults to accepting shares at once.
 	Sharing *sharing.Service
 
@@ -62,6 +65,8 @@ type Server struct {
 	// resetLimiter bounds reset requests per client address, userResetLimiter
 	// per account (so nobody's inbox can be flooded).
 	resetLimiter, userResetLimiter *netx.Limiter
+	// registerLimiter counts bad invite tokens and registrations per client address.
+	registerLimiter *netx.Limiter
 }
 
 type session struct {
@@ -83,14 +88,18 @@ type page struct {
 	IsSetup bool
 	// CanReset offers "forgot password" on the sign-in page.
 	CanReset bool
+	// CanInvite shows the Invites page in the navigation.
+	CanInvite bool
 }
 
 var flashes = map[string]string{
-	"saved":    "Changes saved.",
-	"created":  "Created.",
-	"deleted":  "Deleted.",
-	"password": "Password changed.",
-	"reset":    "Password changed. Sign in with the new one.",
+	"saved":      "Changes saved.",
+	"created":    "Created.",
+	"deleted":    "Deleted.",
+	"password":   "Password changed.",
+	"reset":      "Password changed. Sign in with the new one.",
+	"registered": "Account created. Sign in.",
+	"revoked":    "Invite revoked.",
 }
 
 var funcs = template.FuncMap{
@@ -108,6 +117,7 @@ func (s *Server) init() error {
 	s.codeLimiter = netx.NewLimiter(5, 15*time.Minute)
 	s.resetLimiter = netx.NewLimiter(10, time.Hour)
 	s.userResetLimiter = netx.NewLimiter(3, time.Hour)
+	s.registerLimiter = netx.NewLimiter(20, time.Hour)
 	s.pages = map[string]*template.Template{}
 	entries, err := fs.ReadDir(templateFS, "templates")
 	if err != nil {
@@ -145,6 +155,8 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/forgot", s.forgot)
 	mux.HandleFunc("GET /admin/reset", s.resetForm)
 	mux.HandleFunc("POST /admin/reset", s.reset)
+	mux.HandleFunc("GET /admin/register", s.registerForm)
+	mux.HandleFunc("POST /admin/register", s.register)
 	mux.HandleFunc("GET /admin/setup", s.setupForm)
 	mux.HandleFunc("POST /admin/setup", s.setup)
 	mux.HandleFunc("POST /admin/logout", s.authed(s.logout))
@@ -172,6 +184,10 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/account/2fa/disable", s.authed(s.twoFactorDisable))
 	mux.HandleFunc("POST /admin/account/app-passwords", s.authed(s.createAppPassword))
 	mux.HandleFunc("POST /admin/account/app-passwords/{id}/delete", s.authed(s.deleteAppPassword))
+
+	mux.HandleFunc("GET /admin/invites", s.authed(s.invitesPage))
+	mux.HandleFunc("POST /admin/invites", s.authed(s.createInvite))
+	mux.HandleFunc("POST /admin/invites/{id}/revoke", s.authed(s.revokeInvite))
 
 	mux.HandleFunc("GET /admin/users", s.adminOnly(s.listUsers))
 	mux.HandleFunc("GET /admin/users/new", s.adminOnly(s.newUserForm))
@@ -328,6 +344,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, sta
 	}
 	p.DAVURL = s.davURL(r)
 	p.CanReset = s.resetEnabled()
+	p.CanInvite = s.mayInvite(p.User)
 	t, ok := s.pages[name]
 	if !ok {
 		http.Error(w, "internal error", http.StatusInternalServerError)

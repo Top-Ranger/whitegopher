@@ -1,0 +1,39 @@
+{{define "content"}}
+<h1>Invites</h1>
+<section>
+  <p class="muted">An invite link lets one person create their own account. It works once and expires after 7 days.</p>
+  {{with .Data}}{{if .Link}}
+  <div class="flash" role="status">
+    <p>Send this link to the person you are inviting. <strong>It is shown only once.</strong></p>
+    <p><code class="copy">{{.Link}}</code></p>
+  </div>
+  {{end}}{{end}}
+  <form method="post" action="/admin/invites">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <button type="submit">Create invite link</button>
+  </form>
+</section>
+<section>
+  <h2>Open invites</h2>
+  {{with .Data}}
+  {{if .Invites}}
+  <table>
+    <tr>{{if .All}}<th>Created by</th>{{end}}<th>Created</th><th>Expires</th><th class="actions"></th></tr>
+    {{range .Invites}}
+    <tr>
+      {{if $.Data.All}}<td>{{.CreatorName}}</td>{{end}}
+      <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+      <td>{{.ExpiresAt.Format "2006-01-02 15:04"}}</td>
+      <td class="actions">
+        <form method="post" action="/admin/invites/{{.ID}}/revoke">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <button type="submit" class="danger">Revoke</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+  {{else}}<p class="muted">None.</p>{{end}}
+  {{end}}
+</section>
+{{end}}

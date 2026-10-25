@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="card narrow">
+  <div class="hero"><img src="/admin/static/icon.svg" alt="" width="80" height="80"><span>White Gopher</span></div>
+  <h1>Create your account</h1>
+  {{with .Data}}
+  <form method="post" action="/admin/register" class="stack">
+    <input type="hidden" name="token" value="{{.Token}}">
+    <label>Username <input type="text" name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
+    <label>Display name <input type="text" name="display_name" value="{{.DisplayName}}" autocomplete="name"></label>
+    <label>Email <input type="email" name="email" value="{{.Email}}" autocomplete="email"><span class="hint">Optional. Needed to reset your password by email.</span></label>
+    <label>Password <input type="password" name="password" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
+    <label>Repeat password <input type="password" name="password2" autocomplete="new-password" required minlength="8"></label>
+    <button type="submit">Create account</button>
+  </form>
+  {{end}}
+  <p><a href="/admin/login">Back to sign in</a></p>
+</div>
+{{end}}
