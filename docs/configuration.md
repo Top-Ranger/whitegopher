@@ -48,6 +48,9 @@ limits:
 
 sharing:
   require_accept: false  # new shares wait for the other user to accept
+  pending_expiry_days: 0 # withdraw invitations unanswered for this long; 0 keeps them
+  declined_retention_days: 0     # remove declined and expired shares after this long; 0 keeps them
+  notification_retention_days: 90  # delete old sharing notifications (not open invitations); 0 keeps them
 
 scheduling:
   inbox_retention_days: 90   # delete scheduling-inbox items older than this; 0 keeps them

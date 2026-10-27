@@ -235,7 +235,7 @@ func (s *Server) sharingProps(u store.User, c store.Collection, p map[xml.Name]s
 		switch sh.State {
 		case store.SharePending:
 			status = "<S:invite-noresponse/>"
-		case store.ShareDeclined:
+		case store.ShareDeclined, store.ShareExpired:
 			status = "<S:invite-declined/>"
 		}
 		b.WriteString("<S:user><D:href>" + esc(addr) + "</D:href><S:common-name>" + esc(cn) + "</S:common-name>" + status + "<S:access>" + access + "</S:access></S:user>")

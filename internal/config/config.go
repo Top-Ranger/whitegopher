@@ -70,6 +70,16 @@ type Sharing struct {
 	// (in the admin UI, or from the notification in a CalendarServer-style
 	// client); otherwise shares appear at once.
 	RequireAccept bool `yaml:"require_accept"`
+	// PendingExpiryDays withdraws invitations that have waited longer than
+	// this for an answer; 0 keeps them until answered or withdrawn.
+	PendingExpiryDays int `yaml:"pending_expiry_days"`
+	// DeclinedRetentionDays removes declined and expired invitations after
+	// this long, freeing the sharee's name for the collection; 0 keeps them.
+	DeclinedRetentionDays int `yaml:"declined_retention_days"`
+	// NotificationRetentionDays deletes sharing notifications (answered,
+	// withdrawn and reply notices, not open invitations) older than this;
+	// 0 keeps them.
+	NotificationRetentionDays int `yaml:"notification_retention_days"`
 }
 
 type Limits struct {
@@ -135,6 +145,7 @@ func Default() Config {
 		SMTP:       SMTP{Port: 587},
 		Limits:     Limits{MaxRequestMiB: 10},
 		Scheduling: Scheduling{InboxRetentionDays: 90, IMIPRequireAuth: true},
+		Sharing:    Sharing{NotificationRetentionDays: 90},
 		LoginLimit: LoginLimit{Failures: 10, Window: 15 * time.Minute},
 		Proxy:      Proxy{Trusted: []string{"127.0.0.1", "::1"}},
 		DB:         DB{Driver: "mysql"},
@@ -218,6 +229,9 @@ func (c Config) Validate() error {
 	}
 	if c.Scheduling.InboxRetentionDays < 0 {
 		return fmt.Errorf("scheduling.inbox_retention_days must be >= 0")
+	}
+	if c.Sharing.PendingExpiryDays < 0 || c.Sharing.DeclinedRetentionDays < 0 || c.Sharing.NotificationRetentionDays < 0 {
+		return fmt.Errorf("sharing.pending_expiry_days, declined_retention_days and notification_retention_days must be >= 0")
 	}
 	if c.Limits.MaxRequestMiB < 1 || c.Limits.DefaultQuotaMiB < 0 {
 		return fmt.Errorf("limits: max_request_mib must be >= 1 and default_quota_mib >= 0")

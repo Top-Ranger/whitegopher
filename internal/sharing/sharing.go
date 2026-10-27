@@ -68,9 +68,92 @@ func (s *Service) Unshare(owner store.User, c store.Collection, with store.User)
 	return s.updateInvite(owner, c, with, sh, statusDeleted)
 }
 
+// ExpirePending withdraws the invitations that have waited more than days for
+// an answer. The share is kept, as expired, so the owner can see what became of
+// it and ask again; the sharee is told the invitation was withdrawn. It returns
+// how many were withdrawn; a failure on one does not stop the others.
+func (s *Service) ExpirePending(days int) (int, error) {
+	stale, err := s.Store.StaleShares(days, store.SharePending)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	var errs []error
+	for _, sh := range stale {
+		if err := s.expire(sh); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		n++
+	}
+	return n, errors.Join(errs...)
+}
+
+// parties loads the collection of a share and the two users it is between.
+func (s *Service) parties(sh store.Share) (c store.Collection, owner, with store.User, err error) {
+	if c, err = s.Store.GetCollectionByID(sh.CollectionID); err != nil {
+		return
+	}
+	if owner, err = s.Store.UserByID(c.OwnerID); err != nil {
+		return
+	}
+	with, err = s.Store.UserByID(sh.UserID)
+	return
+}
+
+func (s *Service) expire(sh store.Share) error {
+	c, owner, with, err := s.parties(sh)
+	if err != nil {
+		return err
+	}
+	if err := s.Store.SetShareState(sh.ID, sh.UserID, store.ShareExpired); err != nil {
+		return err
+	}
+	return s.putInvite(owner, c, with, sh, statusDeleted)
+}
+
+// RemoveFinished deletes the shares that were declined or expired more than
+// days ago, which frees the sharee's name for the collection. A sharee who
+// still has the notification of a declined invitation is told it is gone.
+// It returns how many went; a failure on one does not stop the others.
+func (s *Service) RemoveFinished(days int) (int, error) {
+	stale, err := s.Store.StaleShares(days, store.ShareDeclined, store.ShareExpired)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	var errs []error
+	for _, sh := range stale {
+		if err := s.removeFinished(sh); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		n++
+	}
+	return n, errors.Join(errs...)
+}
+
+func (s *Service) removeFinished(sh store.Share) error {
+	// An expired invitation's notification already says it was withdrawn.
+	if sh.State == store.ShareDeclined {
+		c, owner, with, err := s.parties(sh)
+		if err != nil {
+			return err
+		}
+		return s.Unshare(owner, c, with)
+	}
+	if err := s.Store.DeleteShare(sh.CollectionID, sh.UserID); err != nil && !errors.Is(err, store.ErrNotFound) {
+		return err
+	}
+	return nil
+}
+
 // Answer records the sharee's answer to an invitation. The owner is told by a
 // reply notification when the invitation was still open.
 func (s *Service) Answer(sharee store.User, sh store.Share, accept bool) error {
+	if sh.State == store.ShareExpired {
+		return store.ErrNotFound // withdrawn; the owner has to ask again
+	}
 	state := store.ShareDeclined
 	if accept {
 		state = store.ShareAccepted

@@ -272,11 +272,25 @@ func (s *Store) ObjectSize(collectionID int64, uri string) (n int64, err error) 
 // PruneInbox deletes scheduling-inbox items older than days, logging the
 // deletions so syncing clients drop them too. It returns how many went.
 func (s *Store) PruneInbox(days int) (int, error) {
+	return s.pruneSpecial(SpecialInbox, days, "")
+}
+
+// PruneNotifications deletes sharing notifications older than days, logging
+// the deletions so syncing clients drop them too, except the invitations still
+// waiting for an answer. It returns how many went.
+func (s *Store) PruneNotifications(days int) (int, error) {
+	return s.pruneSpecial(SpecialNotification, days, `AND NOT EXISTS (SELECT 1 FROM collection_shares sh
+		WHERE sh.invite_uid = o.uid AND sh.user_id = c.owner_id AND sh.state = 'pending')`)
+}
+
+// pruneSpecial deletes the objects of special collections of one kind that
+// are older than days and match the extra condition (SQL over o and c).
+func (s *Store) pruneSpecial(special string, days int, extra string) (int, error) {
 	total := 0
 	for {
 		rows, err := s.DB.Query(`SELECT o.collection_id, o.uri FROM objects o
 			JOIN collections c ON c.id = o.collection_id
-			WHERE c.special = ? AND o.updated_at < NOW() - INTERVAL ? DAY LIMIT 500`, SpecialInbox, days)
+			WHERE c.special = ? AND o.updated_at < NOW() - INTERVAL ? DAY `+extra+` LIMIT 500`, special, days)
 		if err != nil {
 			return total, err
 		}

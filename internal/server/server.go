@@ -82,6 +82,9 @@ func Run(cfg config.Config, st *store.Store, version string) error {
 	if days := cfg.Scheduling.InboxRetentionDays; days > 0 {
 		go pruneInbox(ctx, st, days)
 	}
+	if sc := cfg.Sharing; sc.PendingExpiryDays > 0 || sc.DeclinedRetentionDays > 0 || sc.NotificationRetentionDays > 0 {
+		go maintainShares(ctx, st, shares, sc)
+	}
 	errc := make(chan error, 1)
 	go func() { errc <- hs.ListenAndServe() }()
 	if cfg.Metrics.Listen != "" {
@@ -101,6 +104,39 @@ func Run(cfg config.Config, st *store.Store, version string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		return hs.Shutdown(shutdownCtx)
+	}
+}
+
+// maintainShares expires and cleans up share invitations and their
+// notifications at startup and daily.
+func maintainShares(ctx context.Context, st *store.Store, shares *sharing.Service, sc config.Sharing) {
+	for {
+		if days := sc.PendingExpiryDays; days > 0 {
+			if n, err := shares.ExpirePending(days); err != nil {
+				slog.Error("expire pending shares", "err", err)
+			} else if n > 0 {
+				slog.Info("withdrew unanswered share invitations", "invitations", n, "older_than_days", days)
+			}
+		}
+		if days := sc.DeclinedRetentionDays; days > 0 {
+			if n, err := shares.RemoveFinished(days); err != nil {
+				slog.Error("remove finished shares", "err", err)
+			} else if n > 0 {
+				slog.Info("removed declined and expired shares", "shares", n, "older_than_days", days)
+			}
+		}
+		if days := sc.NotificationRetentionDays; days > 0 {
+			if n, err := st.PruneNotifications(days); err != nil {
+				slog.Error("prune notifications", "err", err)
+			} else if n > 0 {
+				slog.Info("pruned sharing notifications", "items", n, "older_than_days", days)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(24 * time.Hour):
+		}
 	}
 }
 

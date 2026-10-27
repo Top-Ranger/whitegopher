@@ -21,6 +21,8 @@ const (
 	SharePending  = "pending"
 	ShareAccepted = "accepted"
 	ShareDeclined = "declined"
+	// ShareExpired is an invitation withdrawn because nobody answered it.
+	ShareExpired = "expired"
 )
 
 // Share is a collection mounted into another user's namespace.
@@ -141,13 +143,13 @@ func (s *Store) SetShare(c Collection, userID int64, access string, requireAccep
 			return Share{}, err
 		}
 	}
-	// Inviting somebody who declined asks again.
+	// Inviting somebody who declined, or never answered, asks again.
 	state := ShareAccepted
 	if requireAccept {
 		state = SharePending
 	}
-	if _, err := s.DB.Exec(`UPDATE collection_shares SET state = ? WHERE collection_id = ? AND user_id = ? AND state = ?`,
-		state, c.ID, userID, ShareDeclined); err != nil {
+	if _, err := s.DB.Exec(`UPDATE collection_shares SET state = ?, state_changed_at = NOW() WHERE collection_id = ? AND user_id = ? AND state IN (?, ?)`,
+		state, c.ID, userID, ShareDeclined, ShareExpired); err != nil {
 		return Share{}, err
 	}
 	return s.getShare(c.ID, userID)
@@ -155,10 +157,10 @@ func (s *Store) SetShare(c Collection, userID int64, access string, requireAccep
 
 // SetShareState records the sharee's answer to an invitation.
 func (s *Store) SetShareState(shareID, userID int64, state string) error {
-	if state != SharePending && state != ShareAccepted && state != ShareDeclined {
+	if state != SharePending && state != ShareAccepted && state != ShareDeclined && state != ShareExpired {
 		return fmt.Errorf("store: invalid share state %q", state)
 	}
-	res, err := s.DB.Exec(`UPDATE collection_shares SET state = ? WHERE id = ? AND user_id = ?`, state, shareID, userID)
+	res, err := s.DB.Exec(`UPDATE collection_shares SET state = ?, state_changed_at = NOW() WHERE id = ? AND user_id = ?`, state, shareID, userID)
 	if err != nil {
 		return err
 	}
@@ -251,6 +253,31 @@ func (s *Store) getShare(collectionID, userID int64) (Share, error) {
 		return sh, ErrNotFound
 	}
 	return sh, err
+}
+
+// StaleShares lists the shares that have been in one of the states for more
+// than days (counted from the invitation, or from the last answer or new
+// invitation).
+func (s *Store) StaleShares(days int, states ...string) ([]Share, error) {
+	args := []any{days}
+	for _, st := range states {
+		args = append(args, st)
+	}
+	rows, err := s.DB.Query(`SELECT `+shareColsQ("sh")+` FROM collection_shares sh
+		WHERE sh.state_changed_at < NOW() - INTERVAL ? DAY AND sh.state IN (?`+strings.Repeat(", ?", len(states)-1)+`) ORDER BY sh.id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Share
+	for rows.Next() {
+		sh, err := scanShare(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sh)
+	}
+	return out, rows.Err()
 }
 
 // DeleteShare removes a share; it reports ErrNotFound if there was none.

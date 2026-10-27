@@ -169,7 +169,12 @@ towards the sharee's availability.
   the sharee: in the admin UI (*Invitations* on the start page) or from the
   notification in a CalendarServer-style client. Declining keeps the collection
   out of their home; the owner sees "waiting" or "declined", and inviting again
-  asks again.
+  asks again. With `sharing.pending_expiry_days` an invitation nobody has
+  answered for that long is withdrawn (the client is told) and the owner sees
+  it as expired; inviting again asks again. `sharing.declined_retention_days`
+  removes declined and expired shares after a while, and
+  `sharing.notification_retention_days` (90) deletes old sharing notifications
+  but never an open invitation.
 - `current-user-privilege-set` reflects the access level. Deleting a mounted
   collection leaves the share; the owner deleting it removes it for everyone.
 - Managed in the admin UI, or by clients through the CalendarServer sharing
