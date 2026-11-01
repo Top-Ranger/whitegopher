@@ -473,15 +473,20 @@ func (s *Service) deliverLocal(to store.User, fromAddr, method string, itip *ica
 	if err := s.putRaw(inbox, "itip-"+hex.EncodeToString(sum[:10])+".ics", uid, comps[0].Name, data); err != nil {
 		return err
 	}
+	_, _, ferr := s.Store.FindByUID(to.ID, uid)
+	had := ferr == nil
 	switch method {
 	case "REQUEST":
-		return s.applyRequest(to, itip)
+		err = s.applyRequest(to, itip)
 	case "CANCEL":
-		return s.applyCancel(to, itip)
+		err = s.applyCancel(to, itip)
 	case "REPLY":
 		return s.applyReply(to, itip)
 	}
-	return nil
+	if err == nil {
+		s.notifyLocal(to, method, itip, had)
+	}
+	return err
 }
 
 // putRaw stores data without validation, indexing it when it parses.

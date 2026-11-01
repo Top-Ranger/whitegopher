@@ -84,6 +84,15 @@
     <div><button type="submit">Create app password</button></div>
   </form>
 </section>
+<section id="notifications">
+  <h2>Notifications</h2>
+  <form method="post" action="/admin/account/notifications" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label class="inline"><input type="checkbox" name="notify_invites" value="1"{{if .Data.NotifyInvites}} checked{{end}}{{if not .Data.CanNotify}} disabled{{end}}> Email me when I am invited to a new event or an event is cancelled</label>
+    <p class="muted">{{if .Data.CanNotify}}Some calendar apps (e.g. DAVx5) do not notify you about invitations. Needs an email address on your account. Changes to existing events are not mailed.{{else}}This server has no outgoing email configured.{{end}}</p>
+    <div><button type="submit"{{if not .Data.CanNotify}} disabled{{end}}>Save</button></div>
+  </form>
+</section>
 <section id="privacy">
   <h2>Privacy</h2>
   <form method="post" action="/admin/account/privacy" class="stack">

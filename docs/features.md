@@ -118,6 +118,12 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   `SEQUENCE`, or an instance added or removed) and whenever the server applies
   a REQUEST, CANCEL or REPLY to a copy. `Schedule-Reply: F` keeps an
   attendee's change or deletion from being sent to the organizer.
+- Local attendees can also get a plain-text email (title, day and time,
+  organizer, location; no attachment) when they are invited to a **new** event
+  or an event is cancelled, deleted, or they are removed from it. This is for
+  apps like DAVx5 that show no notification for invitations. It is a per-user
+  setting on the account page (default on), needs `smtp` and an email address,
+  and changes to events the user already has are never mailed.
 - Attendees who are already invited are mailed again (iMIP) only after a
   significant change or when newly added; local attendees' copies are always
   updated, silently. Other edits (title, notes, alarms) do not resend.

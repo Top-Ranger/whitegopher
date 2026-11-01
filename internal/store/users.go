@@ -26,6 +26,9 @@ type User struct {
 	QuotaBytes *int64
 	// HideFreeBusy withholds the user's availability from other users.
 	HideFreeBusy bool
+	// NotifyInvites sends the user an email when they are invited to a new
+	// event or an event is cancelled (needs smtp and an email address).
+	NotifyInvites bool
 	// TOTPSecret is the shared secret of the user's authenticator app. It is
 	// set while enrolling (TOTPEnabled false) and once two-factor is on.
 	TOTPSecret   string
@@ -33,12 +36,12 @@ type User struct {
 	TOTPLastStep int64
 }
 
-const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes, hide_freebusy, totp_secret, totp_enabled, totp_last_step`
+const userCols = `id, username, display_name, email, digest_ha1, password_hash, is_admin, default_calendar, quota_bytes, hide_freebusy, notify_invites, totp_secret, totp_enabled, totp_last_step`
 
 func scanUser(sc interface{ Scan(...any) error }) (User, error) {
 	var u User
 	var quota sql.NullInt64
-	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota, &u.HideFreeBusy, &u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep)
+	err := sc.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &u.DigestHA1, &u.PasswordHash, &u.IsAdmin, &u.DefaultCalendar, &quota, &u.HideFreeBusy, &u.NotifyInvites, &u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep)
 	if quota.Valid {
 		u.QuotaBytes = &quota.Int64
 	}
@@ -188,6 +191,12 @@ func (s *Store) SetDefaultCalendar(userID int64, slug string) error {
 // SetHideFreeBusy records whether the user's availability is hidden from others.
 func (s *Store) SetHideFreeBusy(userID int64, hide bool) error {
 	_, err := s.DB.Exec(`UPDATE users SET hide_freebusy = ? WHERE id = ?`, hide, userID)
+	return err
+}
+
+// SetNotifyInvites records whether the user is emailed about new and cancelled events.
+func (s *Store) SetNotifyInvites(userID int64, on bool) error {
+	_, err := s.DB.Exec(`UPDATE users SET notify_invites = ? WHERE id = ?`, on, userID)
 	return err
 }
 

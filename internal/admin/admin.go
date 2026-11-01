@@ -179,6 +179,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/account/password", s.authed(s.changeOwnPassword))
 	mux.HandleFunc("POST /admin/account/default-calendar", s.authed(s.setDefaultCalendar))
 	mux.HandleFunc("POST /admin/account/privacy", s.authed(s.setPrivacy))
+	mux.HandleFunc("POST /admin/account/notifications", s.authed(s.setNotifications))
 	mux.HandleFunc("POST /admin/account/2fa/start", s.authed(s.twoFactorStart))
 	mux.HandleFunc("POST /admin/account/2fa/enable", s.authed(s.twoFactorEnable))
 	mux.HandleFunc("POST /admin/account/2fa/disable", s.authed(s.twoFactorDisable))

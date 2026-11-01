@@ -17,7 +17,10 @@ type accountData struct {
 	Default string
 	// HideFreeBusy withholds the user's availability from other users.
 	HideFreeBusy bool
-	AppPasswords []store.AppPassword
+	// NotifyInvites emails the user about new and cancelled events; CanNotify
+	// says whether the server can send mail at all.
+	NotifyInvites, CanNotify bool
+	AppPasswords             []store.AppPassword
 	// NewToken is an app password just created; it is shown once.
 	NewToken string
 	// Two-factor state. Secret and URI are filled while enrolling;
@@ -47,6 +50,7 @@ func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *s
 		return
 	}
 	d := accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy,
+		NotifyInvites: sess.User.NotifyInvites, CanNotify: s.Mailer != nil,
 		AppPasswords: aps, TwoFactorOn: sess.User.TOTPEnabled}
 	if sess.User.TOTPEnabled {
 		if d.RecoveryLeft, err = s.Store.CountRecoveryCodes(sess.User.ID); err != nil {
@@ -118,6 +122,14 @@ func (s *Server) setDefaultCalendar(w http.ResponseWriter, r *http.Request, sess
 
 func (s *Server) setPrivacy(w http.ResponseWriter, r *http.Request, sess *session) {
 	if err := s.Store.SetHideFreeBusy(sess.User.ID, r.PostFormValue("hide_freebusy") != ""); err != nil {
+		s.fail(w, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/account?ok=saved", http.StatusSeeOther)
+}
+
+func (s *Server) setNotifications(w http.ResponseWriter, r *http.Request, sess *session) {
+	if err := s.Store.SetNotifyInvites(sess.User.ID, r.PostFormValue("notify_invites") != ""); err != nil {
 		s.fail(w, err)
 		return
 	}
