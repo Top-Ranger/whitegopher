@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const dateFormatStringMessageId = "2006.01.02.15.04.05"
+
 // Message is an outgoing iMIP (RFC 6047) message.
 type Message struct {
 	To, From string // bare email addresses; From is the scheduling sender
@@ -137,7 +139,7 @@ func (m *SMTP) SendText(to, subject, text string) error {
 	h("To", rcpt.Address)
 	h("Subject", (&mimeWord{}).encode(subject))
 	h("Date", time.Now().Format(time.RFC1123Z))
-	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@whitegopher>")
+	h("Message-ID", "<"+time.Now().Format(dateFormatStringMessageId)+"."+hex.EncodeToString(rnd)+"@whitegopher>")
 	h("MIME-Version", "1.0")
 	h("Content-Type", "text/plain; charset=UTF-8")
 	h("Content-Transfer-Encoding", "quoted-printable")
@@ -174,7 +176,7 @@ func buildMIME(from string, msg Message) ([]byte, error) {
 	}
 	h("Subject", (&mimeWord{}).encode(subject))
 	h("Date", time.Now().Format(time.RFC1123Z))
-	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@whitegopher>")
+	h("Message-ID", "<"+time.Now().Format(dateFormatStringMessageId)+"."+hex.EncodeToString(rnd)+"@whitegopher>")
 	h("MIME-Version", "1.0")
 	h("Content-Type", "multipart/alternative; boundary="+boundary)
 	b.WriteString("\r\n")
