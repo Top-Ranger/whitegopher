@@ -151,6 +151,18 @@ func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request, sess 
 		redo("Current password is wrong.")
 		return
 	}
+	if sess.User.TOTPEnabled {
+		if !s.codeLimiter.Allowed(codeKey(sess.User.ID)) {
+			// Throw user out, they try to brute force
+			s.logout(w, r, sess)
+			return
+		}
+		if !s.Auth.CheckSecondFactor(sess.User, r.PostFormValue("code")) {
+			s.codeLimiter.Fail(codeKey(sess.User.ID))
+			redo("Authentication code is wrong.")
+			return
+		}
+	}
 	pw := r.PostFormValue("password")
 	if len(pw) < minPasswordLen {
 		redo("New password must be at least 8 characters.")

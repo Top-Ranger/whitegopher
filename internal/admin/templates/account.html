@@ -110,6 +110,9 @@
     <label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
     <label>New password <input type="password" name="password" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
     <label>Repeat new password <input type="password" name="password2" autocomplete="new-password" required minlength="8"></label>
+    {{if .Data.TwoFactorOn}}
+    <label>Authentication code <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" required maxlength="32"></label>
+    {{end}}
     <div><button type="submit">Change password</button></div>
   </form>
 </section>
