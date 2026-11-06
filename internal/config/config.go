@@ -63,6 +63,11 @@ type Scheduling struct {
 	// the receiving mail server vouched for the sender (an
 	// Authentication-Results header with dkim, spf or dmarc pass).
 	IMIPRequireAuth bool `yaml:"imip_require_auth"`
+	// HideAttendees is the default for organizers who have not chosen: invitees
+	// then only see the organizer and themselves, not the other attendees.
+	HideAttendees bool `yaml:"hide_attendees"`
+	// ForceHideAttendees applies that to every organizer, whatever they chose.
+	ForceHideAttendees bool `yaml:"force_hide_attendees"`
 }
 
 type Sharing struct {

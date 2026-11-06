@@ -57,6 +57,10 @@ type Server struct {
 	Invites string
 	// Sharing manages share invitations. Defaults to accepting shares at once.
 	Sharing *sharing.Service
+	// HideAttendeesDefault is the server default for organizers who have not
+	// chosen to hide the other attendees from invitees; HideAttendeesForce
+	// applies it to everyone (scheduling.hide_attendees, force_hide_attendees).
+	HideAttendeesDefault, HideAttendeesForce bool
 
 	pages map[string]*template.Template
 	// codeLimiter slows guessing of second-factor codes once the password is
@@ -180,6 +184,7 @@ func (s *Server) Handler() (http.Handler, error) {
 	mux.HandleFunc("POST /admin/account/default-calendar", s.authed(s.setDefaultCalendar))
 	mux.HandleFunc("POST /admin/account/privacy", s.authed(s.setPrivacy))
 	mux.HandleFunc("POST /admin/account/notifications", s.authed(s.setNotifications))
+	mux.HandleFunc("POST /admin/account/attendees", s.authed(s.setHideAttendees))
 	mux.HandleFunc("POST /admin/account/2fa/start", s.authed(s.twoFactorStart))
 	mux.HandleFunc("POST /admin/account/2fa/enable", s.authed(s.twoFactorEnable))
 	mux.HandleFunc("POST /admin/account/2fa/disable", s.authed(s.twoFactorDisable))

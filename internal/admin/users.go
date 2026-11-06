@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/bitflipp/whitegopher/internal/sched"
 	"github.com/bitflipp/whitegopher/internal/store"
 )
 
@@ -20,7 +21,10 @@ type accountData struct {
 	// NotifyInvites emails the user about new and cancelled events; CanNotify
 	// says whether the server can send mail at all.
 	NotifyInvites, CanNotify bool
-	AppPasswords             []store.AppPassword
+	// HideAttendees is the effective setting (invitees see only the organizer
+	// and themselves); AttendeesForced says the server dictates it.
+	HideAttendees, AttendeesForced bool
+	AppPasswords                   []store.AppPassword
 	// NewToken is an app password just created; it is shown once.
 	NewToken string
 	// Two-factor state. Secret and URI are filled while enrolling;
@@ -51,7 +55,9 @@ func (s *Server) accountPageWith(w http.ResponseWriter, r *http.Request, sess *s
 	}
 	d := accountData{Calendars: cals, Default: sess.User.DefaultCalendar, HideFreeBusy: sess.User.HideFreeBusy,
 		NotifyInvites: sess.User.NotifyInvites, CanNotify: s.Mailer != nil,
-		AppPasswords: aps, TwoFactorOn: sess.User.TOTPEnabled}
+		HideAttendees:   sched.HidesAttendees(sess.User, s.HideAttendeesDefault, s.HideAttendeesForce),
+		AttendeesForced: s.HideAttendeesForce,
+		AppPasswords:    aps, TwoFactorOn: sess.User.TOTPEnabled}
 	if sess.User.TOTPEnabled {
 		if d.RecoveryLeft, err = s.Store.CountRecoveryCodes(sess.User.ID); err != nil {
 			s.fail(w, err)
@@ -132,6 +138,16 @@ func (s *Server) setNotifications(w http.ResponseWriter, r *http.Request, sess *
 	if err := s.Store.SetNotifyInvites(sess.User.ID, r.PostFormValue("notify_invites") != ""); err != nil {
 		s.fail(w, err)
 		return
+	}
+	http.Redirect(w, r, "/admin/account?ok=saved", http.StatusSeeOther)
+}
+
+func (s *Server) setHideAttendees(w http.ResponseWriter, r *http.Request, sess *session) {
+	if !s.HideAttendeesForce { // forced by the server: the choice is not stored
+		if err := s.Store.SetHideAttendees(sess.User.ID, r.PostFormValue("hide_attendees") != ""); err != nil {
+			s.fail(w, err)
+			return
+		}
 	}
 	http.Redirect(w, r, "/admin/account?ok=saved", http.StatusSeeOther)
 }

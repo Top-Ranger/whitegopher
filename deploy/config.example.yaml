@@ -35,6 +35,8 @@ proxy:
 # scheduling:
 #   inbox_retention_days: 90
 #   imip_require_auth: true   # see "Inbound email" in docs/deployment.md
+#   hide_attendees: false     # default for organizers: invitees don't see each other
+#   force_hide_attendees: false  # ...and make that mandatory for everyone
 
 # Largest request body (and so object), and the default per-user storage quota
 # (0 = unlimited; administrators can set a quota per user in the admin UI).

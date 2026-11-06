@@ -93,6 +93,15 @@
     <div><button type="submit"{{if not .Data.CanNotify}} disabled{{end}}>Save</button></div>
   </form>
 </section>
+<section id="attendees">
+  <h2>Attendee privacy</h2>
+  <form method="post" action="/admin/account/attendees" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label class="inline"><input type="checkbox" name="hide_attendees" value="1"{{if .Data.HideAttendees}} checked{{end}}{{if .Data.AttendeesForced}} disabled{{end}}> Hide the other attendees (and their email addresses) from people I invite</label>
+    <p class="muted">{{if .Data.AttendeesForced}}The administrator requires this for everyone.{{else}}Invitees then see only you and themselves. You still see everyone, and answers still reach you. Applies to invitations sent from now on.{{end}}</p>
+    <div><button type="submit"{{if .Data.AttendeesForced}} disabled{{end}}>Save</button></div>
+  </form>
+</section>
 <section id="privacy">
   <h2>Privacy</h2>
   <form method="post" action="/admin/account/privacy" class="stack">

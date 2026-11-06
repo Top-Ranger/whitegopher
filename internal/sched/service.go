@@ -26,8 +26,58 @@ type Service struct {
 	// Mail delivers iMIP messages to addresses without a local account; nil
 	// disables email delivery.
 	Mail Mailer
+	// HideAttendeesDefault and HideAttendeesForce are the server-wide policy for
+	// showing invitees only the organizer and themselves (see HidesAttendees).
+	HideAttendeesDefault, HideAttendeesForce bool
 	// Now is overridable in tests.
 	Now func() time.Time
+}
+
+// HidesAttendees reports whether invitations sent by organizer omit the other
+// attendees: forced by the server, else the organizer's choice, else the
+// server default.
+func HidesAttendees(organizer store.User, def, force bool) bool {
+	if force {
+		return true
+	}
+	if organizer.HideAttendees != nil {
+		return *organizer.HideAttendees
+	}
+	return def
+}
+
+// forRecipient returns the iTIP message as to may see it. For an organizer
+// who hides attendees, REQUEST and CANCEL keep only the organizer's and the
+// recipient's own ATTENDEE lines; the organizer's own copy is never touched.
+func (s *Service) forRecipient(fromAddr, toAddr, method string, itip *ical.Calendar) *ical.Calendar {
+	if method != "REQUEST" && method != "CANCEL" {
+		return itip
+	}
+	org, ok := s.lookup(fromAddr)
+	if !ok || !HidesAttendees(org, s.HideAttendeesDefault, s.HideAttendeesForce) {
+		return itip
+	}
+	rcpt, local := s.lookup(toAddr)
+	visible := func(a string) bool {
+		a = normAddr(a)
+		return a == toAddr || a == fromAddr || s.isUser(a, org) || (local && s.isUser(a, rcpt))
+	}
+	out := ical.NewCalendar()
+	out.Props = itip.Props
+	for _, c := range itip.Children {
+		cc := cloneComp(c)
+		if c.Name == ical.CompEvent || c.Name == ical.CompToDo {
+			var keep []ical.Prop
+			for _, p := range cc.Props[ical.PropAttendee] {
+				if visible(p.Value) {
+					keep = append(keep, p)
+				}
+			}
+			cc.Props[ical.PropAttendee] = keep
+		}
+		out.Children = append(out.Children, cc)
+	}
+	return out
 }
 
 func New(st *store.Store, basePath string, mail Mailer) *Service {
@@ -428,6 +478,7 @@ func (s *Service) Deliver(fromAddr, toAddr, method string, itip *ical.Calendar) 
 }
 
 func (s *Service) deliver(fromAddr, toAddr, method string, itip *ical.Calendar) string {
+	itip = s.forRecipient(fromAddr, toAddr, method, itip)
 	if to, ok := s.lookup(toAddr); ok {
 		if err := s.deliverLocal(to, fromAddr, method, itip); err != nil {
 			slog.Error("scheduling delivery", "to", toAddr, "method", method, "err", err)

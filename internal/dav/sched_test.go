@@ -39,6 +39,7 @@ type env struct {
 	st         *store.Store
 	url        string
 	alice, bob who
+	svc        *sched.Service
 }
 
 func newSchedEnv(t *testing.T, mail sched.Mailer) *env { return newSchedEnvOpts(t, mail, false) }
@@ -53,11 +54,12 @@ func newSchedEnvOpts(t *testing.T, mail sched.Mailer, requireAccept bool) *env {
 			t.Fatal(err)
 		}
 	}
-	s := &dav.Server{Store: st, Auth: &auth.Authenticator{Store: st, Realm: "R"}, BasePath: "/dav", Sched: sched.New(st, "/dav", mail),
+	svc := sched.New(st, "/dav", mail)
+	s := &dav.Server{Store: st, Auth: &auth.Authenticator{Store: st, Realm: "R"}, BasePath: "/dav", Sched: svc,
 		Sharing: &sharing.Service{Store: st, BasePath: "/dav", RequireAccept: requireAccept}}
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
-	e := &env{t: t, st: st, url: ts.URL,
+	e := &env{t: t, st: st, url: ts.URL, svc: svc,
 		alice: who{t, ts.URL, "alice", "alicepw"}, bob: who{t, ts.URL, "bob", "bobpw"}}
 	for _, p := range []struct {
 		w    who

@@ -124,6 +124,15 @@ Advertised as `calendar-auto-schedule`; processing is server-side ("implicit").
   apps like DAVx5 that show no notification for invitations. It is a per-user
   setting on the account page (default on), needs `smtp` and an email address,
   and changes to events the user already has are never mailed.
+- **Attendee privacy:** an organizer can hide the other attendees from their
+  invitees (account page, *Attendee privacy*). Each invitee's REQUEST/CANCEL,
+  inbox item, calendar copy and iMIP mail then list only the organizer and
+  the invitee themselves, so nobody sees the others' email addresses; the
+  organizer's own copy keeps everyone, and replies work as before.
+  `scheduling.hide_attendees` is the default for organizers who have not
+  chosen, `scheduling.force_hide_attendees` applies it to everyone (the
+  checkbox is then locked). It affects invitations sent from now on, and it
+  does not apply to events organized by an external sender.
 - Attendees who are already invited are mailed again (iMIP) only after a
   significant change or when newly added; local attendees' copies are always
   updated, silently. Other edits (title, notes, alarms) do not resend.

@@ -55,6 +55,8 @@ sharing:
 scheduling:
   inbox_retention_days: 90   # delete scheduling-inbox items older than this; 0 keeps them
   imip_require_auth: true    # imip-receive only trusts mail the receiving MTA authenticated
+  hide_attendees: false      # default: invitees see only the organizer and themselves (organizers can override)
+  force_hide_attendees: false  # apply that to every organizer, whatever they chose
 
 login_limit:             # failed logins (DAV and admin UI) per client address
   failures: 10           # refuse further attempts after this many; 0 disables

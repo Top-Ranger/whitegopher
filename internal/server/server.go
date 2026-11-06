@@ -41,7 +41,9 @@ func Run(cfg config.Config, st *store.Store, version string) error {
 		mailer, textMailer = smtp, smtp
 	}
 	shares := &sharing.Service{Store: st, BasePath: basePath, RequireAccept: cfg.Sharing.RequireAccept}
-	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, Sharing: shares, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: sched.New(st, basePath, mailer)}
+	schedSvc := sched.New(st, basePath, mailer)
+	schedSvc.HideAttendeesDefault, schedSvc.HideAttendeesForce = cfg.Scheduling.HideAttendees, cfg.Scheduling.ForceHideAttendees
+	davSrv := &dav.Server{Store: st, Auth: authn, BasePath: basePath, Sharing: shares, MaxBody: cfg.Limits.MaxRequestMiB << 20, DefaultQuota: cfg.Limits.DefaultQuotaMiB << 20, Sched: schedSvc}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", davSrv.Handler())
@@ -56,7 +58,8 @@ func Run(cfg config.Config, st *store.Store, version string) error {
 		io.WriteString(w, "ok\n")
 	})
 	if cfg.Admin.Enabled {
-		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL, Invites: cfg.Admin.Invites, Sharing: shares}).Handler()
+		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL, Invites: cfg.Admin.Invites, Sharing: shares,
+			HideAttendeesDefault: cfg.Scheduling.HideAttendees, HideAttendeesForce: cfg.Scheduling.ForceHideAttendees}).Handler()
 		if err != nil {
 			return err
 		}
