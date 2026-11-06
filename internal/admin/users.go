@@ -146,8 +146,15 @@ func (s *Server) emailTaken(email string, self int64) bool {
 }
 
 func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request, sess *session) {
+	ip := s.clientIP(r)
 	redo := func(msg string) { s.accountPage(w, r, sess, http.StatusUnprocessableEntity, msg) }
+	if !s.Limiter.Allowed(ip) {
+			// Throw user out, they try to brute force
+			s.logout(w, r, sess)
+			return
+	}
 	if _, ok := s.Auth.Verify(sess.User.Username, r.PostFormValue("current")); !ok {
+		s.Limiter.Fail(ip)
 		redo("Current password is wrong.")
 		return
 	}

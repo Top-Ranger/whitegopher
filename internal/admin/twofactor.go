@@ -69,7 +69,8 @@ func (s *Server) twoFactorDisable(w http.ResponseWriter, r *http.Request, sess *
 		return
 	}
 	if !s.codeLimiter.Allowed(codeKey(u.ID)) {
-		s.accountPage(w, r, sess, http.StatusTooManyRequests, "Too many wrong codes. Try again later.")
+		// Throw user out, they try to brute force
+		s.logout(w, r, sess)
 		return
 	}
 	if _, ok := s.Auth.Verify(u.Username, r.PostFormValue("password")); !ok || !s.Auth.CheckSecondFactor(u, r.PostFormValue("code")) {
