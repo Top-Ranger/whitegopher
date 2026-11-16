@@ -11,8 +11,9 @@ A CalDAV and CardDAV server in pure Go: one static binary plus MariaDB/MySQL.
 MIT licensed. Clean-room: implemented from the RFCs and observed client
 behavior, not from the source of any other CalDAV/CardDAV server.
 
-**Status: not yet tested with real clients** (DAVx5, iOS/macOS, Thunderbird).
+**Status: limited testing with real clients in real-world usage** (DAVx5, Thunderbird, Kontact).
 The automated suite is extensive, but expect client-specific quirks.
+**Help in testing multiple clients is appreciated. If you want to help, fork this repository, fill out the [client testing checklist](docs/client-testing.md) (you do not need to test everything at once) and submit a pull request.**
 See [docs/features.md](docs/features.md) and the
 [client testing checklist](docs/client-testing.md).
 
