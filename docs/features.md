@@ -5,7 +5,7 @@ work is in [roadmap.md](roadmap.md); options are in
 [configuration.md](configuration.md).
 
 > **Status:** everything below is covered by automated tests against MariaDB,
-> but White Gopher has **not yet been tried with real clients** (DAVx5,
+> but White Gopher has had **limited testing with real clients** (DAVx5,
 > iOS/macOS Calendar and Contacts, Thunderbird, Evolution). Expect
 > client-specific quirks until that has been done; see
 > [client-testing.md](client-testing.md).
