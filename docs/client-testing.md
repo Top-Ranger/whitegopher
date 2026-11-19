@@ -328,7 +328,7 @@ message text); the capture/log excerpt; whether it reproduces.
 
 ## 4. Record the results
 
-Copy this table into an issue or a notes file and fill it in. Use
+Copy this table into an issue or a notes file and fill it in. Feel free to add a column if you use a different client. Use
 ✅ pass · ⚠️ works with a workaround or cosmetic problem (describe) ·
 ❌ fail · — not applicable to this client.
 
