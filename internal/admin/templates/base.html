@@ -34,6 +34,18 @@
 {{if .Error}}<div class="error" role="alert">{{.Error}}</div>{{end}}
 {{template "content" .}}
 </main>
+{{if or .LegalNotice .PrivacyPolicy}}
+<footer>
+  <div class="bar">
+    {{if .LegalNotice}}
+    <a href="{{.LegalNotice}}">Legal Notice</a>
+    {{end}}
+    {{if .PrivacyPolicy}}
+    <a href="{{.PrivacyPolicy}}">Privacy Policy</a>
+    {{end}}
+  </div>
+</footer>
+{{end}}
 <script src="/admin/static/color.js"></script>
 </body>
 </html>{{end}}

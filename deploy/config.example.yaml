@@ -58,6 +58,10 @@ admin:
   # Who may create single-use invite links for self-registration:
   # "admin" (default), "everyone" or "off".
   # invites: admin
+  # URL to a web page containing a legal notice. Might be empty.
+  # legal_notice: ""
+  # URL to a web page containing a privacy policy. Might be empty
+  # privacy_policy: ""
 
 # Optional: email invitations to attendees who have no account here.
 # The password goes into WHITEGOPHER_SMTP_PASSWORD.

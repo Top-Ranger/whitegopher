@@ -59,7 +59,7 @@ func Run(cfg config.Config, st *store.Store, version string) error {
 	})
 	if cfg.Admin.Enabled {
 		ui, err := (&admin.Server{Store: st, Auth: authn, DAVPath: basePath, TrustedProxies: netx.Proxies(proxies), Limiter: limiter, Mailer: textMailer, BaseURL: cfg.Admin.BaseURL, Invites: cfg.Admin.Invites, Sharing: shares,
-			HideAttendeesDefault: cfg.Scheduling.HideAttendees, HideAttendeesForce: cfg.Scheduling.ForceHideAttendees}).Handler()
+			HideAttendeesDefault: cfg.Scheduling.HideAttendees, HideAttendeesForce: cfg.Scheduling.ForceHideAttendees, LegalNotice: cfg.Admin.LegalNotice, PrivacyPolicy: cfg.Admin.PrivacyPolicy}).Handler()
 		if err != nil {
 			return err
 		}

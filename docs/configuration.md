@@ -31,6 +31,8 @@ admin:
   enabled: true          # serve the web UI under /admin/
   base_url: ""           # public URL, e.g. "https://cal.example.com"; with smtp, enables password reset by email
   invites: admin         # who may create self-registration invite links: admin, everyone or off
+  legal_notice: ""       # URL to a web page containing a legal notice. Might be empty
+  privacy_policy: ""     # URL to a web page containing a privacy policy. Might be empty
 
 proxy:
   trusted: ["127.0.0.1", "::1"]   # IPs/CIDRs of reverse proxies to believe

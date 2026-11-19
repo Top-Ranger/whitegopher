@@ -129,6 +129,10 @@ type Admin struct {
 	// Invites says who may create single-use invite links that let people
 	// register themselves: "admin" (default), "everyone" (any user) or "off".
 	Invites string `yaml:"invites"`
+	// LegalNotice contains the URL to the legal notice webpage. Might be empty.
+	LegalNotice string `yaml:"legal_notice"`
+	// PrivacyPolicy contains the URL to the privacy policy webpage. Might be empty.
+	PrivacyPolicy string `yaml:"privacy_policy"`
 }
 
 type DB struct {

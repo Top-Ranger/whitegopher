@@ -61,6 +61,10 @@ type Server struct {
 	// chosen to hide the other attendees from invitees; HideAttendeesForce
 	// applies it to everyone (scheduling.hide_attendees, force_hide_attendees).
 	HideAttendeesDefault, HideAttendeesForce bool
+	// LegalNotice contains the URL to the legal notice webpage. Might be empty.
+	LegalNotice string `yaml:"legal_notice"`
+	// PrivacyPolicy contains the URL to the privacy policy webpage. Might be empty.
+	PrivacyPolicy string `yaml:"privacy_policy"`
 
 	pages map[string]*template.Template
 	// codeLimiter slows guessing of second-factor codes once the password is
@@ -93,7 +97,9 @@ type page struct {
 	// CanReset offers "forgot password" on the sign-in page.
 	CanReset bool
 	// CanInvite shows the Invites page in the navigation.
-	CanInvite bool
+	CanInvite     bool
+	LegalNotice   string
+	PrivacyPolicy string
 }
 
 var flashes = map[string]string{
@@ -351,6 +357,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name string, sta
 	p.DAVURL = s.davURL(r)
 	p.CanReset = s.resetEnabled()
 	p.CanInvite = s.mayInvite(p.User)
+	p.LegalNotice = s.LegalNotice
+	p.PrivacyPolicy = s.PrivacyPolicy
 	t, ok := s.pages[name]
 	if !ok {
 		http.Error(w, "internal error", http.StatusInternalServerError)
