@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/netx"
-	"github.com/bitflipp/whitegopher/internal/sharing"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/netx"
+	"github.com/Top-Ranger/whitegopher/internal/sharing"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 //go:embed templates/*.html

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bitflipp/whitegopher/internal/importer"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/importer"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 func importTree(st *store.Store, args []string) error {

@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 func TestTwoFactor(t *testing.T) {

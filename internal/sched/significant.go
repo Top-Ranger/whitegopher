@@ -8,7 +8,7 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // significantProps are the properties whose change counts as a

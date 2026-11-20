@@ -19,9 +19,9 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"github.com/bitflipp/whitegopher/internal/netx"
-	"github.com/bitflipp/whitegopher/internal/obs"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/netx"
+	"github.com/Top-Ranger/whitegopher/internal/obs"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // HA1 returns md5(user:realm:password), the legacy hash an import may carry. It is only

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/Top-Ranger/whitegopher/internal/sched"
 )
 
 func imipMail(from, authResults, method, ics string) string {

@@ -8,10 +8,10 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/bitflipp/whitegopher/internal/buildinfo"
-	"github.com/bitflipp/whitegopher/internal/config"
-	"github.com/bitflipp/whitegopher/internal/server"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/buildinfo"
+	"github.com/Top-Ranger/whitegopher/internal/config"
+	"github.com/Top-Ranger/whitegopher/internal/server"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // version is set at release time with -ldflags "-X main.version=...".

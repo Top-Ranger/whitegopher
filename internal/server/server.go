@@ -13,15 +13,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/admin"
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/config"
-	"github.com/bitflipp/whitegopher/internal/dav"
-	"github.com/bitflipp/whitegopher/internal/netx"
-	"github.com/bitflipp/whitegopher/internal/obs"
-	"github.com/bitflipp/whitegopher/internal/sched"
-	"github.com/bitflipp/whitegopher/internal/sharing"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/admin"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/config"
+	"github.com/Top-Ranger/whitegopher/internal/dav"
+	"github.com/Top-Ranger/whitegopher/internal/netx"
+	"github.com/Top-Ranger/whitegopher/internal/obs"
+	"github.com/Top-Ranger/whitegopher/internal/sched"
+	"github.com/Top-Ranger/whitegopher/internal/sharing"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // Run serves DAV, the admin UI and metrics until SIGINT/SIGTERM or a listener

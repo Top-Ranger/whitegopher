@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 const resetLifetime = time.Hour

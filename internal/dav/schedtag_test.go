@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/Top-Ranger/whitegopher/internal/sched"
 )
 
 type captureMail struct {

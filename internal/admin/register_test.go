@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/admin"
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/store"
-	"github.com/bitflipp/whitegopher/internal/storetest"
+	"github.com/Top-Ranger/whitegopher/internal/admin"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/storetest"
 )
 
 func TestInviteRegistration(t *testing.T) {

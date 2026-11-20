@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/sched"
+	"github.com/Top-Ranger/whitegopher/internal/sched"
 )
 
 const daveAtt = "ATTENDEE;CN=Dave;PARTSTAT=NEEDS-ACTION:mailto:dave@external.org"

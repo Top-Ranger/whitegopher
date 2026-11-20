@@ -17,7 +17,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // DSNEnv names the environment variable that selects the test server.

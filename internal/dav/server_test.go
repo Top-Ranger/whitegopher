@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/dav"
-	"github.com/bitflipp/whitegopher/internal/store"
-	"github.com/bitflipp/whitegopher/internal/storetest"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/dav"
+	"github.com/Top-Ranger/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/storetest"
 )
 
 func newServer(t *testing.T) *httptest.Server {

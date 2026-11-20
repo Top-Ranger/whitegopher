@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/sharing"
-	"github.com/bitflipp/whitegopher/internal/store"
-	"github.com/bitflipp/whitegopher/internal/storetest"
+	"github.com/Top-Ranger/whitegopher/internal/sharing"
+	"github.com/Top-Ranger/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/storetest"
 )
 
 func TestExpirePending(t *testing.T) {

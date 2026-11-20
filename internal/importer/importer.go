@@ -15,9 +15,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/bitflipp/whitegopher/internal/dav"
-	"github.com/bitflipp/whitegopher/internal/index"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/dav"
+	"github.com/Top-Ranger/whitegopher/internal/index"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // Format and Version identify the manifest this package understands.

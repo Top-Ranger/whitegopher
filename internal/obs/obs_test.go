@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/obs"
+	"github.com/Top-Ranger/whitegopher/internal/obs"
 )
 
 func TestMiddlewareLogsAndCounts(t *testing.T) {

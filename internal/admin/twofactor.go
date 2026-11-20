@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
 )
 
 const recoveryCodeCount = 8

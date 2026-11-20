@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bitflipp/whitegopher/internal/config"
-	"github.com/bitflipp/whitegopher/internal/sched"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/config"
+	"github.com/Top-Ranger/whitegopher/internal/sched"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // imipReceive processes one iMIP email (read from FILE or stdin), for use as

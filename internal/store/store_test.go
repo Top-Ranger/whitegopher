@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/bitflipp/whitegopher/internal/store"
-	"github.com/bitflipp/whitegopher/internal/storetest"
+	"github.com/Top-Ranger/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/storetest"
 )
 
 func newCollection(t *testing.T, st *store.Store, owner string) store.Collection {

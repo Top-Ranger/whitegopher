@@ -6,7 +6,7 @@ The import format is a plain directory tree. It is independent of any source
 server: to migrate from another CalDAV/CardDAV server (or from files on disk),
 write a small converter that produces this tree, then run the importer on it.
 White Gopher itself ships no converters; ready-made ones live in
-[whitegopher-contrib](https://github.com/bitflipp/whitegopher-contrib).
+[whitegopher-contrib](https://github.com/Top-Ranger/whitegopher-contrib).
 
 ## Quick start
 

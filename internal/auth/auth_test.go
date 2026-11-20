@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/netx"
-	"github.com/bitflipp/whitegopher/internal/store"
-	"github.com/bitflipp/whitegopher/internal/storetest"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/netx"
+	"github.com/Top-Ranger/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/storetest"
 )
 
 func setup(t *testing.T) *httptest.Server {

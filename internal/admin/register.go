@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/auth"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/auth"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 const inviteLifetime = 7 * 24 * time.Hour

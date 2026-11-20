@@ -14,7 +14,7 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // ErrNotITIP means a message carried no calendar part whitegopher acts on.

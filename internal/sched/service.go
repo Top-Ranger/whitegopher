@@ -14,8 +14,8 @@ import (
 
 	"github.com/emersion/go-ical"
 
-	"github.com/bitflipp/whitegopher/internal/index"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/index"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 // Service performs scheduling for the DAV server.

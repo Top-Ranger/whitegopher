@@ -1,6 +1,6 @@
 [Unit]
 Description=whitegopher CalDAV/CardDAV server
-Documentation=https://github.com/bitflipp/whitegopher
+Documentation=https://github.com/Top-Ranger/whitegopher
 After=network-online.target mariadb.service mysql.service
 Wants=network-online.target
 

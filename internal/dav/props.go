@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitflipp/whitegopher/internal/sharing"
-	"github.com/bitflipp/whitegopher/internal/store"
+	"github.com/Top-Ranger/whitegopher/internal/sharing"
+	"github.com/Top-Ranger/whitegopher/internal/store"
 )
 
 func dav(local string) xml.Name  { return xml.Name{Space: nsDAV, Local: local} }
